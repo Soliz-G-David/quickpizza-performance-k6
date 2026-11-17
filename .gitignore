@@ -1,0 +1,16 @@
+# Reportes generados por k6
+reports/*.html
+reports/*.json
+summary.json
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+
+# Variables de entorno / secretos
+.env
