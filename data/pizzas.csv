@@ -1,0 +1,31 @@
+customName,maxCaloriesPerSlice,mustBeVegetarian,minNumberOfToppings,maxNumberOfToppings,excludedTools
+Margarita Cochala,900,true,2,4,
+Pepperoni Andina,700,false,1,3,knife
+Cuatro Quesos,700,false,2,3,
+Hawaiana Tropical,1000,false,3,4,
+Vegetariana Valle,700,true,3,4,knife
+Napolitana Clasica,700,false,2,5,knife
+Diavola Picante,700,false,3,4,
+Champinones Supreme,700,false,2,4,knife
+BBQ Pollo,800,false,1,5,knife
+Fugazza Criolla,1200,false,2,3,knife
+Pizza del Tunari,1200,false,2,4,
+Salchipizza,1200,false,1,5,
+Pique Macho Pizza,1200,false,2,4,knife
+Silpancho Pizza,1000,false,2,4,knife
+Mediterranea,1000,false,2,4,
+Rucula y Jamon,800,false,2,3,knife
+Prosciutto Fungi,900,false,3,5,knife
+Capricciosa,900,false,1,2,knife
+Marinara,1000,true,2,4,
+Calzone Abierta,1000,false,3,4,
+Pizza Llajua,1200,false,2,4,knife
+Choclo y Queso,1200,true,3,5,knife
+Pollo Picante,700,false,1,3,knife
+Atun y Cebolla,700,false,1,5,knife
+Espinaca Ricotta,1200,true,3,5,knife
+Carnivora,900,false,1,3,knife
+Alcachofa Blanca,800,false,1,3,
+Pesto Verde,800,true,2,3,
+Tocino y Huevo,1000,false,3,5,
+Pizza Grupo 2,800,false,3,5,knife
