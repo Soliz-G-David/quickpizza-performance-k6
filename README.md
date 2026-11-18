@@ -1,7 +1,8 @@
 # QuickPizza – Pruebas de Performance con k6
 
-Proyecto final del Diplomado en Testing de Software V6 (UCB) – Módulo Testing de Performance.
-Evaluación de rendimiento de la app de demostración **QuickPizza** de Grafana, usando **Grafana k6 Studio**, **k6** y **Grafana**.
+Proyecto final del **Diplomado en Testing de Software V6 (UCB)** – Módulo Testing de Performance.
+
+Evaluación de rendimiento de la aplicación de demostración **QuickPizza** de Grafana mediante **Grafana k6 Studio**, **k6** y **Grafana**.
 
 - **App bajo prueba:** https://quickpizza.grafana.com
 - **Herramientas:** Grafana k6 Studio 2.1.3 · k6 · Grafana
@@ -10,127 +11,459 @@ Evaluación de rendimiento de la app de demostración **QuickPizza** de Grafana,
 
 ## Escenario de negocio
 
-Un usuario entra a QuickPizza, inicia sesión, pide una pizza y la califica:
+Se modela el comportamiento de un usuario que ingresa a QuickPizza, inicia sesión, solicita pizzas y registra una valoración.
 
-1. **HomePage**: abre la página principal.
-2. **Login**: obtiene el `csrf_token` e inicia sesión.
-3. **Pedir pizza 1**: presiona *Pizza, Please!*.
-4. **No thanks**: rechaza la pizza 1 (1 estrella).
-5. **Pedir pizza 2**.
-6. **Love it**: acepta la pizza 2 (5 estrellas).
+El flujo implementado es:
+
+1. **HomePage:** abre la página principal.
+2. **Login:** obtiene el `csrf_token` e inicia sesión.
+3. **Pedir pizza 1:** solicita una pizza mediante *Pizza, Please!*.
+4. **Calificar pizza 1:** selecciona aleatoriamente entre:
+   - **Love it:** 5 estrellas.
+   - **No thanks:** 1 estrella.
+5. **Pedir pizza 2:** solicita una segunda pizza.
+6. **Calificar pizza 2:** selecciona aleatoriamente entre:
+   - **Love it:** 5 estrellas.
+   - **No thanks:** 1 estrella.
+
+La distribución de las valoraciones está parametrizada para representar aproximadamente un comportamiento de **80 % Love it / 20 % No thanks**.
 
 ---
 
 ## Estructura del proyecto
 
-```
+```text
 quickpizza-performance-k6/
 ├── config/
-│   └── settings.js          # URL base (BASE_URL) y think time
+│   └── settings.js                  # URL base, think time y modo DEBUG
 ├── data/
-│   ├── users.csv            # Credenciales (usuario default de QuickPizza)
-│   └── pizzas.csv           # 30 pizzas (datos del formulario)
+│   ├── users.csv                    # Credenciales
+│   └── pizzas.csv                   # 30 pizzas para parametrización
 ├── utils/
-│   ├── csv.js               # Lector de CSV
-│   ├── data.js              # SharedArray de usuarios y pizzas
-│   ├── http.js              # Cabeceras y token anónimo dinámico
-│   └── auth.js              # csrf (Regex), login (JSONPath), authenticate
+│   ├── csv.js                       # Lector de archivos CSV
+│   ├── data.js                      # SharedArray de usuarios y pizzas
+│   ├── http.js                      # Cabeceras y token anónimo dinámico
+│   └── auth.js                      # CSRF, login y autenticación
 ├── scenarios/
-│   └── orderPizza.js        # Flujo de negocio (6 grupos)
-├── scripts/                 # Script principal de cada versión del proyecto
-│   ├── quickpizza-v2-correlacion.js
-│   └── quickpizza-v3-modular.js
-├── reports/                 # Reportes HTML generados por k6 (no se suben a git)
-├── docs/                    # Capturas e informe
+│   └── orderPizza.js                # Flujo de negocio
+├── scripts/
+│   ├── quickpizza-v2-correlacion.js # Correlaciones
+│   ├── quickpizza-v3-modular.js     # Versión modular
+│   ├── quickpizza-v5-smoke.js       # Prueba Smoke
+│   ├── quickpizza-v5-load.js        # Prueba Load
+│   ├── quickpizza-v5-spike.js       # Prueba Spike
+│   └── quickpizza-v5-stress.js      # Prueba Stress
+├── reports/                         # Reportes generados
+├── docs/                            # Documentación, capturas e informe
 └── README.md
 ```
 
 ---
 
-## Versiones del proyecto
+# Versiones del proyecto
 
 | Versión | Descripción | Estado |
 |---|---|---|
-| **v1** | Script generado automáticamente por k6 Studio (grabación + asistente) | ✅ |
-| **v2** | Correlaciones: `csrf_token` (automática), sesión por cookie y `pizza_id` (manual) | ✅ |
-| **v3** | Estructura modular + parametrización con **SharedArray** (credenciales y 30 pizzas desde CSV) + 100 VUs + think time + corrección de errores de la v2 | ✅ |
-| **v4** | Checks de negocio (tiempos y contenido) + comportamiento 80 % *Love it* / 20 % *No thanks* | ⏳ |
-| **v5** | Thresholds con las metas del proyecto + perfiles de carga (smoke, load, spike, stress) | ⏳ |
+| **v1** | Script generado automáticamente por k6 Studio mediante grabación y asistente | ✅ |
+| **v2** | Correlaciones de `csrf_token`, sesión y `pizza_id` | ✅ |
+| **v3** | Estructura modular + parametrización mediante **SharedArray** y archivos CSV + think time + hasta 100 VUs | ✅ |
+| **v4** | Checks de negocio + comportamiento probabilístico 80 % *Love it* / 20 % *No thanks* | ✅ |
+| **v5** | Thresholds + perfiles de carga: smoke, load, spike y stress | ✅ |
 | **v6** | Métricas en tiempo real hacia Grafana local + dashboard | ⏳ |
 
-### Hallazgos de la v1 → v2
+---
+
+# v1 – Grabación inicial
+
+La primera versión fue generada mediante **Grafana k6 Studio**, utilizando la grabación del flujo de negocio.
+
+Esta versión permitió obtener una primera automatización del recorrido:
+
+```text
+HomePage
+   ↓
+Login
+   ↓
+Pedir pizza
+   ↓
+Calificar
+   ↓
+Pedir otra pizza
+   ↓
+Calificar
+```
+
+La grabación sirvió como punto de partida para posteriormente analizar las solicitudes y corregir los valores dinámicos del flujo.
+
+---
+
+# v2 – Correlación
+
+En la segunda versión se analizaron los valores dinámicos utilizados durante la ejecución.
+
+### Hallazgos
 
 - El asistente de k6 Studio detectó automáticamente la correlación del **`csrf_token`**.
-- **No** detectó la correlación del **`pizza_id`** → las calificaciones (`POST /api/ratings`) fallaban con **400**.
-- Al correlacionar `pizza_id` en modo **JSON**, k6 Studio lo enviaba como **texto** (`"20623"`) y el servidor
-  respondía: `cannot unmarshal string into Go struct field Rating.pizza_id of type int64`.
-- **Solución:** Extractor en JSON (`pizza.id`) + Replacer en modo **Begin-End** (`"pizza_id":` … `,`), que inserta el número sin comillas → **201 Created**.
+- No detectó correctamente la correlación del **`pizza_id`**.
+- Las solicitudes de valoración (`POST /api/ratings`) fallaban con **HTTP 400**.
+- El `pizza_id` era enviado como texto en lugar de un valor numérico.
 
-### Hallazgos de la v2 → v3
+El servidor devolvía:
 
-- **"Love it" calificaba la pizza equivocada:** usaba el `pizza_id` de la primera pizza. Ahora cada pizza guarda su propio ID.
-- **Pedidos duplicados:** los grupos *No thanks* y *Love it* repetían `POST /api/pizza` (ruido de la grabación), así que cada iteración pedía 4 pizzas en vez de 2 y se inflaba el RPS. Se eliminaron.
-- **Tokens fijos:** la grabación dejó `Token jIxbUHeCwu0yjwtc` y `traceparent` fijos. Ahora el token anónimo se genera por VU y el token de sesión se correlaciona desde el login.
-- **Usuarios propios en el sitio público:** se intentó usar 30 usuarios propios registrados con `POST /api/users`. El registro respondía
-  `username already taken` (el usuario existía), pero el login del **mismo** usuario a veces respondía 200 y a veces
-  `401 authentication failed`. Hipótesis: el sitio público corre **varias réplicas** detrás de un balanceador y cada una guarda
-  sus propios usuarios (estado no compartido). Se usa el usuario `default`, precargado en todas las réplicas, leído desde
-  `data/users.csv` con SharedArray. El login se mantiene en cada iteración como parte de la transacción completa.
-- **Regex frágil:** `resp.headers["Set-Cookie"].match(...)` rompía la iteración si el header no llegaba. Ahora se valida antes.
+```text
+cannot unmarshal string into Go struct field Rating.pizza_id of type int64
+```
 
-### Correlaciones implementadas (v3)
+### Solución
+
+Se implementó:
+
+- Extractor JSON sobre `pizza.id`.
+- Reemplazo del valor utilizando el modo **Begin-End**.
+- Envío del `pizza_id` como número, sin comillas.
+
+Con esta modificación, la solicitud de valoración pudo procesarse correctamente.
+
+---
+
+# v3 – Modularización y parametrización
+
+La tercera versión reorganizó el proyecto para separar responsabilidades y facilitar el mantenimiento del código.
+
+### Implementaciones principales
+
+- Uso de **SharedArray** para los datos de prueba.
+- Parametrización mediante archivos CSV.
+- Separación de:
+  - configuración,
+  - datos,
+  - autenticación,
+  - utilidades HTTP,
+  - flujo de negocio.
+- Think time entre acciones.
+- Ejecución con hasta **100 VUs**.
+- Correlación de valores dinámicos durante la ejecución.
+
+### Correcciones realizadas
+
+#### Pizza incorrecta en la valoración
+
+Cada pizza creada durante la iteración guarda su propio `pizza.id`, evitando utilizar accidentalmente el ID de otra pizza.
+
+#### Solicitudes duplicadas
+
+La grabación inicial contenía solicitudes duplicadas de `POST /api/pizza`.
+
+Estas solicitudes provocaban que una iteración generara más pizzas de las necesarias y alteraban artificialmente el volumen de tráfico.
+
+Se eliminaron las solicitudes duplicadas.
+
+#### Tokens fijos
+
+La grabación contenía valores fijos para determinados tokens y headers.
+
+Se reemplazaron por valores dinámicos:
+
+- Token anónimo generado durante la ejecución.
+- Token de sesión obtenido mediante correlación después del login.
+
+#### Usuario de prueba
+
+El entorno público presentó comportamientos inconsistentes al utilizar usuarios registrados específicamente para las pruebas.
+
+Por este motivo se utiliza el usuario `default`, disponible en el entorno de QuickPizza y almacenado en:
+
+```text
+data/users.csv
+```
+
+El login se ejecuta como parte del flujo completo de cada iteración.
+
+#### Extracción robusta del cookie
+
+Se agregó validación antes de procesar el header `Set-Cookie`, evitando que la iteración falle cuando el valor no esté disponible.
+
+---
+
+# Correlaciones implementadas
 
 | # | Valor | Origen | Técnica | Uso |
 |---|---|---|---|---|
 | 1 | `csrf_token` | Header `Set-Cookie` de `POST /api/csrf-token` | Regex `csrf_token=([A-Za-z0-9]+);` | Body del login |
-| 2 | `token` de sesión | Body de `POST /api/users/token/login` | JSONPath `token` | Header `Authorization: Token ...` |
+| 2 | `token` de sesión | Body de `POST /api/users/token/login` | JSONPath `token` | Header `Authorization` |
 | 3 | `pizza.id` | Body de `POST /api/pizza` | JSONPath `pizza.id` | Body de `POST /api/ratings` |
 
 ---
 
-## Cómo ejecutar
+# v4 – Checks de negocio y comportamiento del usuario
 
-### Requisitos
-- [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado (`k6 version`)
-- (Opcional) Grafana k6 Studio para abrir y editar las grabaciones
+La cuarta versión incorpora validaciones funcionales mediante **checks de k6** y agrega comportamiento probabilístico para las valoraciones.
 
-### Prueba rápida (smoke)
-```bash
-k6 run --vus 1 --iterations 1 scripts/quickpizza-v3-modular.js
+## Checks implementados
+
+Durante el flujo se validan:
+
+- Status HTTP de HomePage.
+- Status HTTP de Login.
+- Obtención del CSRF.
+- Extracción del CSRF.
+- Login exitoso.
+- Longitud del token de sesión.
+- Usuario autenticado.
+- Creación de la pizza.
+- Existencia del `pizza.id`.
+- Creación correcta de la valoración.
+
+La valoración espera una respuesta:
+
+```text
+HTTP 201 Created
 ```
 
-### Ver las correlaciones (modo debug)
-Muestra en la terminal el `csrf_token`, el token de sesión y los `pizza.id` capturados en cada iteración:
-```bash
-k6 run -e DEBUG=true --vus 1 --iterations 2 scripts/quickpizza-v3-modular.js
+## Distribución de comportamiento
+
+Cada valoración selecciona aleatoriamente entre:
+
+```text
+80 % → Love it → 5 estrellas
+20 % → No thanks → 1 estrella
 ```
 
-### Prueba de carga con dashboard en vivo
-PowerShell:
-```powershell
-$env:K6_WEB_DASHBOARD="true"
-$env:K6_WEB_DASHBOARD_EXPORT="reports/reporte.html"
-k6 run scripts/quickpizza-v3-modular.js
-```
-Dashboard en vivo: http://localhost:5665
+La distribución busca representar un comportamiento de usuario más realista durante las pruebas de carga.
 
-### Cambiar la URL de la app
-```bash
-k6 run -e BASE_URL=http://localhost:3333 scripts/quickpizza-v3-modular.js
+---
+
+# v5 – Perfiles de carga
+
+La quinta versión incorpora **thresholds** y diferentes perfiles de carga para evaluar el comportamiento de QuickPizza bajo distintas condiciones.
+
+## Criterios de aceptación
+
+Se definieron los siguientes objetivos de rendimiento para el proyecto:
+
+```text
+P95 < 500 ms
+Error rate < 1 %
+```
+
+Los criterios se implementan mediante thresholds de k6:
+
+```js
+thresholds: {
+  http_req_duration: ["p(95)<500"],
+  http_req_failed: ["rate<0.01"],
+}
+```
+
+El valor de **500 ms** se utiliza como criterio de aceptación definido para este proyecto, tomando como referencia el objetivo de rendimiento planteado en la consigna.
+
+---
+
+## v5.1 – Smoke
+
+Objetivo: validar rápidamente que el flujo completo funciona correctamente antes de ejecutar pruebas de mayor carga.
+
+Configuración:
+
+```text
+1 VU
+1 iteración
 ```
 
 ---
 
-## Nota
-`quickpizza.grafana.com` es un entorno **público y compartido** publicado por Grafana para practicar.
-Las pruebas de carga se mantienen cortas y con *think time* para no saturarlo.
+## v5.2 – Load
 
-## Equipo – Grupo 2
+Objetivo: evaluar el comportamiento de la aplicación bajo una carga sostenida.
+
+Perfil:
+
+```text
+100 VUs → 1 minuto
+100 VUs → 3 minutos
+0 VUs   → 1 minuto
+```
+
+---
+
+## v5.3 – Spike
+
+Objetivo: evaluar la reacción de la aplicación ante un aumento brusco de usuarios.
+
+Perfil:
+
+```text
+10 VUs  → 30 segundos
+100 VUs → 10 segundos
+100 VUs → 1 minuto
+0 VUs   → 30 segundos
+```
+
+---
+
+## v5.4 – Stress
+
+Objetivo: incrementar progresivamente la carga para observar posibles signos de degradación.
+
+Perfil:
+
+```text
+100 VUs → 1 minuto
+200 VUs → 1 minuto
+300 VUs → 1 minuto
+400 VUs → 1 minuto
+0 VUs   → 1 minuto
+```
+
+Los resultados detallados, métricas, gráficas y análisis de estos escenarios se documentarán en el **informe técnico** y en el dashboard de observabilidad.
+
+---
+
+# v6 – Observabilidad con Grafana
+
+**Estado: ⏳ En desarrollo**
+
+El objetivo de esta versión es integrar las métricas generadas por k6 con **Grafana local** y construir un dashboard para observar el comportamiento de las pruebas en tiempo real.
+
+El dashboard contemplará métricas como:
+
+- Requests por segundo (RPS).
+- P90.
+- P95.
+- P99.
+- Error rate.
+- VUs activos.
+- Duración de las solicitudes.
+
+La integración permitirá complementar los resultados numéricos de k6 con una representación gráfica del comportamiento del sistema durante las pruebas de carga.
+
+---
+
+# Cómo ejecutar
+
+## Requisitos
+
+- **k6** instalado.
+- Verificar la instalación:
+
+```bash
+k6 version
+```
+
+- Opcionalmente, **Grafana k6 Studio 2.1.3** para abrir y editar las grabaciones.
+
+---
+
+## Ejecutar Smoke
+
+```bash
+k6 run scripts/quickpizza-v5-smoke.js
+```
+
+---
+
+## Ejecutar Load
+
+```bash
+k6 run scripts/quickpizza-v5-load.js
+```
+
+---
+
+## Ejecutar Spike
+
+```bash
+k6 run scripts/quickpizza-v5-spike.js
+```
+
+---
+
+## Ejecutar Stress
+
+```bash
+k6 run scripts/quickpizza-v5-stress.js
+```
+
+---
+
+## Ver las correlaciones en modo debug
+
+Para visualizar durante la ejecución los valores dinámicos capturados:
+
+```bash
+k6 run -e DEBUG=true --vus 1 --iterations 2 scripts/quickpizza-v3-modular.js
+```
+
+Esto permite observar valores como:
+
+- `csrf_token`
+- token de sesión
+- `pizza.id`
+
+---
+
+## Dashboard web local de k6
+
+k6 también permite visualizar las métricas mediante su dashboard web incorporado.
+
+### PowerShell
+
+```powershell
+$env:K6_WEB_DASHBOARD="true"
+$env:K6_WEB_DASHBOARD_EXPORT="reports/reporte.html"
+k6 run scripts/quickpizza-v5-load.js
+```
+
+Dashboard:
+
+```text
+http://localhost:5665
+```
+
+> Este dashboard corresponde a la funcionalidad web integrada de k6. La integración con **Grafana local** y el dashboard definitivo forman parte de la implementación de v6.
+
+---
+
+## Cambiar la URL de la aplicación
+
+La URL base puede modificarse mediante la variable de entorno `BASE_URL`:
+
+```bash
+k6 run -e BASE_URL=http://localhost:3333 scripts/quickpizza-v5-load.js
+```
+
+---
+
+# Consideraciones sobre el entorno
+
+`quickpizza.grafana.com` es un entorno **público y compartido** proporcionado por Grafana para realizar prácticas de testing de performance.
+
+Por este motivo:
+
+- Las pruebas se mantienen acotadas.
+- Se utiliza *think time* entre acciones.
+- Se evita realizar cargas innecesariamente prolongadas.
+- Los resultados deben interpretarse considerando que se trata de un entorno compartido.
+
+---
+
+# Documentación y evidencias
+
+La carpeta `docs/` estará destinada a almacenar:
+
+- Capturas de las ejecuciones.
+- Evidencias del dashboard.
+- Análisis de resultados.
+- Informe técnico.
+- Conclusiones y recomendaciones.
+
+Los resultados detallados de las pruebas no se mantienen en este README para conservarlo como documento de referencia y ejecución del proyecto.
+
+---
+
+# Equipo – Grupo 2
+
 - David Soliz Garcia
-- Pedro Adrian Santos Orellana
-- Mauricio Gutierrez Pacheco
-- Rodrigo Camilo Mendez Gallardo
 - Maria Alexandra Quintanilla
-- Pablo Chuquimia Huanca
 
-Docente: Marco Luna Gonzales
+**Docente:** Marco Luna Gonzales
