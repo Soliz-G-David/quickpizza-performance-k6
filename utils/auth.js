@@ -8,7 +8,7 @@
 
 import http from "k6/http";
 import { check } from "k6";
-import { BASE_URL, debugLog } from "../config/settings.js";
+import { BASE_URL, MAX_RESPONSE_MS, debugLog } from "../config/settings.js";
 import { apiParams } from "./http.js";
 
 // ---------------------------------------------------------------------
@@ -31,6 +31,7 @@ export function getCsrfToken() {
   check(res, {
     "csrf: status 200": (r) => r.status === 200,
     "csrf: token extraído": () => csrfToken !== null,
+    [`csrf: responde en < ${MAX_RESPONSE_MS} ms`]: (r) => r.timings.duration < MAX_RESPONSE_MS,
   });
 
   return csrfToken;
@@ -69,6 +70,7 @@ export function login(user, csrfToken) {
   check(res, {
     "login: status 200": (r) => r.status === 200,
     "login: token de 16 caracteres": () => token !== null && token.length === 16,
+    [`login: responde en < ${MAX_RESPONSE_MS} ms`]: (r) => r.timings.duration < MAX_RESPONSE_MS,
   });
 
   return token;
