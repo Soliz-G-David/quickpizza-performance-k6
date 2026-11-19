@@ -1,0 +1,1586 @@
+\documentclass[11pt]{article}
+
+%%%%%%%% PAQUETES %%%%%%%%
+\usepackage[spanish, es-tabla]{babel}       % 'Tabla' en vez de 'Cuadro'
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}                               % Texto con serifa
+\usepackage{tgheros}                               % Títulos sin serifa (Helvetica)
+\usepackage{microtype}
+\usepackage[letterpaper, margin=2.5cm]{geometry}   % Tamaño carta
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{calc, shapes.symbols, positioning}
+\usepackage{tocloft}                               % Estilo del índice
+\usepackage{titlesec}                              % Estilo de títulos
+\usepackage{fancyhdr}                              % Encabezado y pie
+\usepackage{tabularx}                              % Tablas a todo el ancho
+\usepackage{booktabs}                              % Líneas de tabla elegantes
+\usepackage{array}
+\usepackage{enumitem}                              % Listas compactas
+\usepackage{float}                                 % Figuras con [H]
+\usepackage{caption}
+\usepackage{subcaption}                            % Figuras lado a lado
+\usepackage{listings}                              % Bloques de comandos
+\usepackage{etoolbox}
+\usepackage{needspace}                             % Evita títulos solos al final de página
+\usepackage[most]{tcolorbox}                       % Recuadros de "pendiente"
+\usepackage{hyperref}
+
+%%%%%%%% COLORES %%%%%%%%
+\definecolor{ucbazul}{HTML}{0B2A5B}
+\definecolor{ucbazulclaro}{HTML}{1F4E8C}
+\definecolor{acento}{HTML}{C9A227}
+\definecolor{grisTexto}{HTML}{4A4A4A}
+\definecolor{fondoCodigo}{HTML}{F4F4F4}
+\definecolor{verdeOK}{HTML}{2E7D32}
+
+\hypersetup{colorlinks=true, linkcolor=ucbazul, linktoc=page, urlcolor=ucbazulclaro,
+            pdftitle={Proyecto Final - Performance Testing con k6}}
+
+%%%%%%%% DATOS DEL PROYECTO (editar aquí si cambian) %%%%%%%%
+\newcommand{\repoURL}{https://github.com/Soliz-G-David/quickpizza-performance-k6}
+\newcommand{\appURL}{https://quickpizza.grafana.com}
+
+% Texto en mayúsculas con espaciado entre letras
+\newcommand{\espaciado}[1]{\textls[120]{\MakeUppercase{#1}}}
+
+% Captura con marco; si la imagen aún no existe no se muestra nada
+% Uso: \captura{images/archivo.png}{Pie de figura}
+\newcommand{\captura}[2]{%
+  \IfFileExists{#1}{%
+  \begin{figure}[!htbp]
+    \centering
+    \fcolorbox{gray!45}{white}{\includegraphics[width=\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax, height=0.40\textheight, keepaspectratio]{#1}}%
+    \caption{#2}
+  \end{figure}}{}}
+
+% Igual que \captura pero con etiqueta para referenciarla
+\newcommand{\capturaref}[3]{%
+  \IfFileExists{#1}{%
+  \begin{figure}[!htbp]
+    \centering
+    \fcolorbox{gray!45}{white}{\includegraphics[width=\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax, height=0.40\textheight, keepaspectratio]{#1}}%
+    \caption{#2}
+    \label{#3}
+  \end{figure}}{}}
+
+% Recuadro dorado para lo que falta completar
+\newtcolorbox{pendiente}{enhanced, colback=acento!8, colframe=acento, boxrule=0pt, leftrule=3pt,
+  arc=0pt, left=8pt, right=8pt, top=5pt, bottom=5pt, fontupper=\small\sffamily,
+  before skip=1.3em,
+  overlay={\node[anchor=south east, fill=acento, text=white, font=\sffamily\bfseries\tiny,
+    inner sep=2.5pt] at (frame.north east) {\espaciado{Pendiente}};}}
+
+%%%%%%%% ESTILO DE FIGURAS, TABLAS Y CÓDIGO %%%%%%%%
+\captionsetup{font=small, labelfont={bf,sf,color=ucbazul}, labelsep=period, justification=centering}
+\setlist{nosep, leftmargin=*}
+\setlist[itemize]{label={\color{acento}\rule[0.2ex]{0.45em}{0.45em}}}
+\renewcommand{\arraystretch}{1.35}
+\setlength{\aboverulesep}{0pt}                      % Sin huecos blancos entre filas coloreadas
+\setlength{\belowrulesep}{0pt}
+\AtBeginEnvironment{tabularx}{\rowcolors{2}{white}{ucbazul!4}}  % Filas alternas suaves
+\AtBeginEnvironment{table}{\small}                  % Tablas en letra un poco menor
+
+% Insignias de estado: \aprobado y \noaprobado
+\newcommand{\insignia}[3]{\tcbox[on line, colback=#1, colframe=#1, arc=6pt, boxsep=0pt,
+  left=5pt, right=5pt, top=1.5pt, bottom=1.5pt]{\sffamily\scriptsize\bfseries\color{#2}#3}}
+\newcommand{\aprobado}{\insignia{verdeOK!12}{verdeOK}{APROBADO}}
+\newcommand{\noaprobado}[1]{\insignia{red!10}{red!70!black}{NO APROBADO}\ {\scriptsize #1}}
+% Etiquetas de color por escenario
+\newcommand{\chip}[2]{\tcbox[on line, colback=#1, colframe=#1, arc=2pt, boxsep=0pt,
+  left=4pt, right=4pt, top=1.5pt, bottom=1.5pt]{\sffamily\scriptsize\bfseries\color{white}#2}}
+\newcommand{\esmoke}{\chip{gray!70}{SMOKE}}
+\newcommand{\eload}{\chip{ucbazulclaro}{LOAD}}
+\newcommand{\espike}{\chip{acento!90!black}{SPIKE}}
+\newcommand{\estress}{\chip{red!65!black}{STRESS}}
+% Subtítulo con letra en un círculo dorado. Uso: \bloque{A}{Título}
+\newcommand{\bloque}[2]{\par\needspace{6\baselineskip}\vspace{0.8em}\noindent
+  \tikz[baseline=(l.base)]\node[circle, fill=acento, text=white, font=\sffamily\bfseries\small,
+    inner sep=1.5pt, minimum size=1.35em](l){#1};%
+  \hspace{0.5em}{\sffamily\bfseries\normalsize\color{ucbazulclaro}#2}\par\vspace{0.3em}}
+
+% Tablas estilo B: encabezado azul con texto blanco y línea dorada al final
+\newcommand{\encab}[1]{{\leavevmode\color{white}\sffamily\bfseries #1}}
+\renewcommand{\toprule}{\arrayrulecolor{ucbazul}\specialrule{0.8pt}{0pt}{0pt}\arrayrulecolor{black}}
+\renewcommand{\midrule}{\arrayrulecolor{ucbazul}\specialrule{0.4pt}{0pt}{0pt}\arrayrulecolor{black}}
+\renewcommand{\bottomrule}{\arrayrulecolor{acento}\specialrule{1.2pt}{0pt}{0pt}\arrayrulecolor{black}}
+
+%%%%%%%% ELEMENTOS NUEVOS %%%%%%%%
+% Etiqueta pequeña en mayúsculas doradas
+\newcommand{\etiqueta}[1]{{\sffamily\bfseries\footnotesize\color{acento}\espaciado{#1}}}
+
+% Resumen ejecutivo (recuadro azul)
+\newtcolorbox{resumen}{enhanced, colback=ucbazul, colframe=ucbazul, arc=3pt, coltext=white,
+  left=12pt, right=12pt, top=8pt, bottom=8pt, fontupper=\sffamily\small,
+  title={\etiqueta{Resumen ejecutivo}}, attach title to upper, after title={\par\vspace{3pt}}}
+
+% Tarjeta con un indicador clave. Uso: \kpi{Nombre}{Valor}{Detalle}
+\newcommand{\kpi}[3]{%
+  \begin{tcolorbox}[enhanced, width=0.235\textwidth, nobeforeafter, colback=white,
+    colframe=ucbazul!15, boxrule=0.6pt, arc=3pt, borderline north={3pt}{0pt}{acento},
+    height=2.05cm, valign=center,
+    halign=center, top=6pt, bottom=6pt]
+  {\sffamily\scriptsize\color{grisTexto}\espaciado{#1}}\\[2pt]
+  {\sffamily\bfseries\fontsize{18}{22}\selectfont\color{ucbazul}#2}\\[1pt]
+  {\sffamily\scriptsize\color{verdeOK}#3}
+  \end{tcolorbox}}
+
+% Recuadro para hallazgos importantes
+\newtcolorbox{hallazgo}{enhanced, colback=ucbazulclaro!6, colframe=ucbazulclaro!6, arc=0pt,
+  borderline west={4pt}{0pt}{ucbazulclaro}, left=10pt, right=8pt, top=6pt, bottom=6pt,
+  fontupper=\small}
+
+% Gráfico del perfil de carga. Uso: \perfil{Título}{VUs máx.}{segundos}{coordenadas (s,VUs)}{marcas eje x}
+\newcommand{\perfil}[5]{%
+  \begin{tikzpicture}[x=4.2cm/#3, y=2.2cm/#2]
+    \fill[ucbazul!8] (0,0) -- plot coordinates {#4} -- (#3,0) -- cycle;
+    \draw[ucbazul, line width=1.4pt, line join=round] plot[mark=*, mark size=1.4pt, mark options={fill=acento, draw=acento}] coordinates {#4};
+    \draw[gray!60] (0,0) -- (#3*1.04,0);
+    \draw[gray!60] (0,0) -- (0,#2*1.12);
+    \draw[gray!30, dashed] (0,#2) -- (#3,#2);
+    \node[left, font=\sffamily\scriptsize, text=grisTexto] at (0,#2) {#2};
+    \node[left, font=\sffamily\scriptsize, text=grisTexto] at (0,0) {0};
+    \foreach \t/\l in {#5} \node[below, font=\sffamily\scriptsize, text=grisTexto] at (\t,0) {\l};
+    \node[font=\sffamily\bfseries\small, text=ucbazul] at (#3/2,#2*1.3) {#1};
+  \end{tikzpicture}}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{fondoCodigo},
+  frame=leftline, framerule=2pt, rulecolor=\color{acento},
+  xleftmargin=0.4cm, framexleftmargin=0.3cm,
+  breaklines=true, columns=fullflexible, keepspaces=true,
+  aboveskip=0.6em, belowskip=0.8em, showstringspaces=false,
+  % Tildes y eñes dentro del código
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+           {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1
+}
+
+%%%%%%%% CONSOLA (GIT BASH) Y ARCHIVOS DE CÓDIGO %%%%%%%%
+\definecolor{bashFondo}{HTML}{0C0C0C}
+\definecolor{bashTexto}{HTML}{CCCCCC}
+\definecolor{bashVerde}{HTML}{16C60C}
+\definecolor{bashMorado}{HTML}{B148C6}
+\definecolor{bashAmarillo}{HTML}{C19C00}
+\definecolor{bashComentario}{HTML}{767676}
+
+% Línea del prompt de Git Bash
+\newcommand{\prompt}{{\color{bashVerde}PC- DAVID@LAPTOP-QNOIOQBU} {\color{bashMorado}MINGW64} {\color{bashAmarillo}\textasciitilde/quickpizza-performance-k6}}
+
+% Icono de Git (rombo naranja) y botones de la ventana
+\newcommand{\iconoGit}{\tikz[baseline=-0.6ex]{\fill[orange!85!red, rotate=45] (-0.12,-0.12) rectangle (0.12,0.12);
+  \draw[white, line width=0.6pt] (-0.06,-0.05) -- (0.02,0.03) (0.02,0.03) -- (0.07,-0.02);}}
+\newcommand{\botonesVentana}{{\sffamily\footnotesize\color{black!70}\rule[0.35ex]{0.6em}{0.5pt}\hspace{1.4em}%
+  \tikz[baseline=-0.1ex]\draw[black!70, line width=0.5pt] (0,0) rectangle (0.2,0.2);\hspace{1.3em}$\times$}}
+
+% Consola Git Bash. Uso: \begin{gitbash} ... \end{gitbash}
+% Cada comando empieza con "$ ". El prompt se agrega solo al inicio.
+\newtcblisting{gitbash}{listing only, enhanced, colback=bashFondo, colframe=black!35,
+  boxrule=0.5pt, arc=0pt, left=8pt, right=8pt, top=3pt, bottom=4pt,
+  before skip=0.8em, after skip=1.2em,
+  title={\iconoGit\hspace{0.6em}{\sffamily\footnotesize\color{black!85}MINGW64:/c/Users/PC- DAVID/quickpizza-performance-k6}\hfill\botonesVentana},
+  colbacktitle=white!96!black, coltitle=black, toptitle=3pt, bottomtitle=3pt, titlerule=0pt,
+  listing options={basicstyle=\ttfamily\small\color{bashTexto}, backgroundcolor={}, frame=none,
+    xleftmargin=0pt, framexleftmargin=0pt, breaklines=true, columns=fullflexible, keepspaces=true,
+    escapeinside={(*}{*)}, upquote=true,
+    morecomment={[l]{\#}}, commentstyle=\color{bashComentario}\itshape,
+    aboveskip=0pt, belowskip=0pt}}
+
+% Archivo de código con barra de título. Uso: \begin{archivo}{utils/data.js} ... \end{archivo}
+\lstdefinelanguage{JavaScript}{
+  keywords={export, import, from, const, let, var, new, function, return, if, else, true, false},
+  morekeywords=[2]{SharedArray, open, Number, parseCsv},
+  sensitive=true, morecomment=[l]{//}, morestring=[b]"}
+\newtcblisting{archivo}[2][]{listing only, enhanced, breakable, colback=white, colframe=ucbazul,
+  arc=0pt, boxrule=0pt, leftrule=3pt, left=8pt, right=6pt, top=3pt, bottom=3pt,
+  borderline={0.4pt}{0pt}{ucbazul!20}, before skip=0.7em, after skip=0.9em,
+  title={\sffamily\scriptsize\bfseries\espaciado{#2}}, colbacktitle=ucbazul, coltitle=white,
+  toptitle=2pt, bottomtitle=2pt,
+  listing options={basicstyle=\ttfamily\small, keywordstyle=\color{ucbazulclaro}\bfseries,
+    keywordstyle={[2]\color{ucbazul}}, stringstyle=\color{verdeOK}, commentstyle=\color{gray}\itshape,
+    backgroundcolor={}, frame=none, xleftmargin=0pt, framexleftmargin=0pt, breaklines=true,
+    columns=fullflexible, keepspaces=true, upquote=true, aboveskip=0pt, belowskip=0pt, #1}}
+
+%%%%%%%% ESTILO DEL ÍNDICE %%%%%%%%
+\renewcommand{\cfttoctitlefont}{\sffamily\bfseries\fontsize{28}{32}\selectfont\color{ucbazul}}
+\renewcommand{\cftaftertoctitle}{\par\vspace{0.2cm}{\color{acento}\rule{\linewidth}{1.4pt}}}
+\setlength{\cftbeforetoctitleskip}{0pt}
+\setlength{\cftaftertoctitleskip}{0.6cm}
+
+% Secciones
+\renewcommand{\cftsecfont}{\sffamily\bfseries\large\color{ucbazul}}
+\renewcommand{\cftsecpagefont}{\sffamily\bfseries\large\color{ucbazul}}
+\renewcommand{\cftsecleader}{\hfill}
+\setlength{\cftbeforesecskip}{0.55em}
+% Número de sección en un cuadro azul
+\newsavebox{\cajaindice}
+\renewcommand{\cftsecpresnum}{\begin{lrbox}{\cajaindice}\color{white}}
+\renewcommand{\cftsecaftersnum}{\end{lrbox}\colorbox{ucbazul}{\makebox[1em]{\usebox{\cajaindice}}}}
+\setlength{\cftsecnumwidth}{2.2em}
+
+% Subsecciones
+\renewcommand{\cftsubsecfont}{\small\color{grisTexto}}
+\renewcommand{\cftsubsecpagefont}{\small\color{grisTexto}}
+\renewcommand{\cftsubsecpresnum}{\color{acento!85!black}}
+\renewcommand{\cftsubsecleader}{\color{gray!60}\cftdotfill{\cftdotsep}}
+\setlength{\cftbeforesubsecskip}{0.05em}
+\setlength{\cftsubsecindent}{2.2em}
+\setlength{\cftsubsecnumwidth}{2.6em}
+
+%%%%%%%% ESTILO DE TÍTULOS %%%%%%%%
+% Sección: número en un cuadro azul y línea dorada debajo de todo el ancho
+\titleformat{\section}[block]
+  {\sffamily\bfseries\Large\color{ucbazul}}
+  {\colorbox{ucbazul}{\makebox[1.1em]{\color{white}\thesection}}}{0.6em}{}
+  [\vspace{0.3em}{\color{acento}\titlerule[1.2pt]}]
+\titleformat{\subsection}
+  {\sffamily\bfseries\large\color{ucbazulclaro}}
+  {\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}
+  {\sffamily\bfseries\normalsize\color{ucbazulclaro}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{1.6em}{1em}
+\titlespacing*{\subsection}{0pt}{1.2em}{0.6em}
+
+%%%%%%%% ENCABEZADO Y PIE %%%%%%%%
+\usepackage{lastpage}                              % Total de páginas
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\IfFileExists{images/images.png}{\raisebox{-0.25\height}{\includegraphics[height=0.75cm]{images/images.png}}}{}}
+\fancyhead[R]{\sffamily\small\color{grisTexto}Performance Testing con k6 -- Grupo 2}
+\fancyfoot[L]{\sffamily\scriptsize\color{grisTexto}Diplomado en Software Testing -- UCB}
+\fancyfoot[R]{\sffamily\scriptsize\color{grisTexto}Página {\color{ucbazul}\bfseries\thepage} de \pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0.8pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\footrule}{{\color{acento!60}\hrule width\headwidth height\footrulewidth \vskip-\footrulewidth}}
+\renewcommand{\headrule}{{\color{acento}\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}}
+\setlength{\headheight}{30pt}
+\fancypagestyle{plain}{}   % Las páginas 'plain' (índice) usan el mismo estilo
+
+% Las figuras flotan para llenar la página y evitar espacios en blanco
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{3}
+\setcounter{totalnumber}{5}
+\makeatletter
+\setlength{\@fptop}{0pt}          % Páginas de solo figuras: empiezan arriba, sin centrar
+\setlength{\@fpsep}{1.2em}
+\makeatother
+
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+
+%%%%%%%% DOCUMENTO %%%%%%%%
+\begin{document}
+
+\pagenumbering{roman}
+%%%% HOJA 1: CARÁTULA
+\begin{titlepage}
+\thispagestyle{empty}
+
+% --- Fondo: banda inferior y marca de agua ---
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[ucbazul] (current page.south west) rectangle ($(current page.south east)+(0,1.1cm)$);
+  \fill[acento]  ($(current page.south west)+(0,1.1cm)$) rectangle ($(current page.south east)+(0,1.2cm)$);
+  \node[text=white] at ($(current page.south)+(0,0.55cm)$)
+    {\sffamily\footnotesize \espaciado{Departamento de Ingeniería de Sistemas \quad·\quad Cochabamba -- Bolivia}};
+  \node[anchor=east, text=ucbazul!5] at ($(current page.east)+(0.6cm,-2.2cm)$)
+    {\sffamily\bfseries\fontsize{260}{260}\selectfont k6};
+\end{tikzpicture}
+
+% --- Encabezado: logo a la izquierda y programa a la derecha ---
+\vspace*{0.1cm}
+\noindent
+\begin{minipage}[c]{0.47\linewidth}
+\IfFileExists{images/images.png}{%
+  \includegraphics[height=3.3cm, keepaspectratio]{images/images.png}%
+}{%
+  \tikz\draw[gray!60, dashed, rounded corners] (0,0) rectangle (7cm,3.3cm)
+    node[midway, text=gray, font=\small] {Logo UCB};%
+}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.49\linewidth}
+\begin{tcolorbox}[enhanced, frame hidden, colback=white, arc=0pt, borderline west={1.5pt}{0pt}{acento},
+  left=16pt, right=0pt, top=4pt, bottom=4pt, boxsep=0pt]
+{\sffamily\small\color{grisTexto}\espaciado{Diplomado en}}\\[0.1cm]
+{\sffamily\bfseries\fontsize{24}{28}\selectfont\color{ucbazul}Software Testing}\\[0.3cm]
+\begin{tikzpicture}[baseline=(n.base)]
+  \node[anchor=base west, font=\sffamily\bfseries\fontsize{46}{46}\selectfont, text=acento, inner sep=0pt] (n) {05};
+  \node[anchor=south west, font=\sffamily\bfseries\scriptsize, text=grisTexto, inner sep=0pt]
+    at ($(n.north west)+(0.05cm,0.1cm)$) {\espaciado{Módulo}};
+  \draw[ucbazul, line width=1.2pt] ($(n.north east)+(0.3cm,0.05cm)$) -- ($(n.south east)+(0.3cm,0)$);
+  \node[anchor=west, align=left, inner sep=0pt] at ($(n.east)+(0.6cm,0)$)
+    {{\sffamily\bfseries\Large\color{ucbazulclaro}Performance}\\[0.05cm]
+     {\sffamily\bfseries\Large\color{ucbazulclaro}Testing}};
+\end{tikzpicture}
+\end{tcolorbox}
+\end{minipage}
+
+\vspace{0.5cm}
+{\color{acento}\rule{\linewidth}{1pt}}
+
+% --- Título ---
+\vspace{2.2cm}
+{\sffamily\bfseries\huge\color{acento}\espaciado{Proyecto Final}}\\[0.3cm]
+{\sffamily\bfseries\fontsize{38}{42}\selectfont\color{ucbazul} Performance Testing\\[0.1cm] con k6}\\[0.5cm]
+{\sffamily\Large\color{grisTexto} Evaluación de rendimiento de QuickPizza\\ hasta 400 usuarios virtuales}
+
+% --- Datos ---
+\vfill
+\begin{tcolorbox}[enhanced, colback=ucbazul!4, colframe=ucbazul!4, arc=2pt, left=12pt, right=12pt,
+  top=10pt, bottom=10pt, borderline west={3pt}{0pt}{acento}]
+\large
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}r@{\hspace{0.6cm}}l@{}}
+  {\sffamily\bfseries\color{ucbazul}Integrantes} & Pablo Ivan Chuquimia Huanca \\
+                                                & Mauricio Gutierrez Pacheco \\
+                                                & Rodrigo Camilo Mendez Gallardo \\
+                                                & Maria Alexandra Quintanilla \\
+                                                & Pedro Adrian Santos Orellana \\
+                                                & David Soliz Garcia \\[0.25cm]
+  {\sffamily\bfseries\color{ucbazul}Grupo}       & 2 \\[0.25cm]
+  {\sffamily\bfseries\color{ucbazul}Docente}     & Marco Luna Gonzales \\[0.25cm]
+  {\sffamily\bfseries\color{ucbazul}Fecha}       & 16 de noviembre de 2026 \\
+\end{tabular}
+\end{tcolorbox}
+\vspace{0.6cm}
+\end{titlepage}
+
+%%%% HOJA 2: ÍNDICE
+\pagenumbering{roman}
+\setcounter{page}{2}
+\tableofcontents
+\clearpage
+
+%%%% CONTENIDO
+\pagenumbering{arabic}
+
+%%%% RESUMEN EJECUTIVO E INDICADORES CLAVE
+\begin{resumen}
+QuickPizza cumplió los criterios de éxito bajo carga nominal: con 100 usuarios
+virtuales el P95 fue de 248.5\,ms (umbral de 500\,ms), con 0\,\% de errores y
+100\,\% de checks, y absorbió un pico de 100 VUs en 10 segundos sin degradarse.
+Con 400 VUs se mantuvo sin errores (P95 de 278\,ms), pero se acerca a su límite:
+la capacidad recomendada ronda los 300 usuarios concurrentes.
+\end{resumen}
+
+\vspace{0.3cm}
+\noindent
+\kpi{P95 con 100 VUs}{248.5 ms}{umbral 500 ms}\hfill
+\kpi{Errores}{0 \%}{en las 4 pruebas}\hfill
+\kpi{Checks}{100 \%}{23\,282 / 23\,282 (load)}\hfill
+\kpi{Pico de carga}{330 req/s}{con 400 VUs}
+\vspace{0.4cm}
+
+%==================================================================
+\section{Objetivo del trabajo}
+%==================================================================
+
+El objetivo de este proyecto es \textbf{evaluar de forma integral el rendimiento,
+la estabilidad y el comportamiento bajo carga} de la aplicación web
+\textbf{QuickPizza} mediante scripts automatizados en \textbf{Grafana k6}.
+
+Para lograrlo, el equipo siguió un proceso incremental:
+
+\begin{enumerate}
+  \item \textbf{Grabación} del recorrido real de un usuario con \textbf{Grafana k6 Studio}:
+        ingreso a la página, inicio de sesión, pedido de pizzas y calificación
+        (\emph{No thanks} y \emph{Love it}).
+  \item \textbf{Refinamiento del script} generado: correlación de valores dinámicos
+        (token CSRF, token de sesión e ID de la pizza) y parametrización de datos con
+        \texttt{SharedArray} (credenciales y 30 pizzas distintas).
+  \item \textbf{Estructuración modular} del código en un repositorio Git, separando
+        datos, utilidades, configuración y escenarios.
+  \item \textbf{Ejecución de escenarios de carga} (\emph{smoke}, carga sostenida, \emph{spike}
+        y estrés) desde 1 hasta \textbf{400 usuarios virtuales}, con validaciones y umbrales
+        de aprobación.
+  \item \textbf{Observabilidad en tiempo real} con el \textbf{dashboard web de Grafana k6},
+        ejecutado en entorno local, y exportación de reportes HTML interactivos.
+  \item \textbf{Análisis de resultados}, identificación de cuellos de botella y
+        recomendaciones de optimización.
+\end{enumerate}
+
+%==================================================================
+\section{Introducción y alcance}
+%==================================================================
+
+\subsection{Contexto de la aplicación}
+
+\textbf{QuickPizza} (\url{\appURL}) es la aplicación web de demostración que
+Grafana Labs publica para practicar pruebas de rendimiento con k6. Permite
+registrarse e iniciar sesión, pedir una recomendación de pizza al azar según
+filtros (calorías, ingredientes, si es vegetariana) y calificar las pizzas
+recomendadas.
+
+\subsection{Arquitectura tecnológica}
+
+QuickPizza tiene un \emph{frontend} web que consume una \textbf{API REST} con
+respuestas JSON. La autenticación usa un \textbf{token CSRF} previo al login; el
+login devuelve un \textbf{token de sesión} que viaja en una \emph{cookie} y en la
+cabecera \texttt{Authorization}. Las recomendaciones y las calificaciones se manejan
+con los recursos \texttt{/api/pizza} y \texttt{/api/ratings}.
+
+El sitio público funciona con \textbf{varias instancias (réplicas)} detrás de un
+balanceador de carga. Este detalle se observó durante las pruebas (ver
+sección~\ref{sec:parametrizacion}).
+
+\subsection{Flujos críticos de negocio}
+
+\begin{itemize}
+  \item \textbf{Autenticación:} obtención del \texttt{csrf\_token} e inicio de sesión.
+  \item \textbf{Recomendación de pizza:} \texttt{POST /api/pizza} con los filtros del usuario.
+  \item \textbf{Calificación:} \texttt{POST /api/ratings} con el \texttt{pizza\_id} recomendado (\emph{Love it} o \emph{No thanks}).
+\end{itemize}
+
+\subsection{Criterios de éxito y objetivos de rendimiento}
+
+Se adoptaron los criterios de referencia del enunciado como objetivos de
+rendimiento del proyecto. Se aplican por igual a todos los escenarios:
+
+\begin{table}[H]
+\centering
+\caption{Criterios de éxito.}
+\begin{tabularx}{\textwidth}{l l >{\raggedright\arraybackslash}X}
+\toprule
+\rowcolor{ucbazul}
+\encab{Métrica} & \encab{Objetivo} & \encab{Significado} \\
+\midrule
+\texttt{http\_req\_duration} & p(95) < 500\,ms & El 95\,\% de las peticiones responde en menos de medio segundo \\
+\texttt{http\_req\_failed}   & rate < 1\,\%     & Menos de 1 de cada 100 peticiones falla \\
+\texttt{checks}              & 100\,\%          & Todas las validaciones de negocio se cumplen \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Como referencia previa, la prueba funcional del script v3 (3 VUs, 6 iteraciones)
+dio P95 = 234\,ms y 0\,\% de errores. Los cuatro escenarios V5 cumplieron los tres
+criterios (ver sección~\ref{sec:resultados}).
+
+%==================================================================
+\section{Funcionalidades y modelo de carga}
+%==================================================================
+
+\subsection{Flujos de usuario seleccionados}
+
+Cada iteración de un usuario virtual ejecuta la \textbf{transacción completa},
+organizada en seis grupos:
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[paso/.style={signal, signal to=east, signal from=west, fill=ucbazul,
+    draw=white, line width=1.5pt, text=white, font=\sffamily\bfseries\scriptsize, align=center,
+    minimum height=1.05cm, minimum width=2.45cm, inner xsep=3pt},
+    califica/.style={paso, fill=ucbazulclaro!75}, node distance=-0.05cm]
+  \node[paso, signal from=nowhere] (a) {01\\HomePage};
+  \node[paso, right=of a] (b) {02\\Login};
+  \node[paso, right=of b] (c) {03\\Pedir pizza 1};
+  \node[califica, right=of c] (d) {04\\Calificar 1};
+  \node[paso, right=of d] (e) {05\\Pedir pizza 2};
+  \node[califica, right=of e, fill=verdeOK] (f) {06\\Calificar 2};
+  \node[below=0.12cm of b, font=\sffamily\tiny, text=grisTexto] {csrf + token de sesión};
+  \node[below=0.12cm of c, font=\sffamily\tiny, text=grisTexto] {pizza.id};
+  \node[below=0.12cm of d, font=\sffamily\tiny, text=grisTexto] {Love it / No thanks};
+  \node[below=0.12cm of f, font=\sffamily\tiny, text=grisTexto] {Love it / No thanks};
+\end{tikzpicture}
+\caption{Flujo de negocio de cada iteración.}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Grupos del flujo de negocio y peticiones principales.}
+\begin{tabularx}{\textwidth}{l l >{\raggedright\arraybackslash}X}
+\toprule
+\rowcolor{ucbazul}
+\encab{Grupo} & \encab{Acción del usuario} & \encab{Peticiones principales} \\
+\midrule
+01 & HomePage       & \texttt{GET /}, \texttt{GET /api/config}, \texttt{GET /api/quotes}, \texttt{GET /api/tools} \\
+02 & Login          & \texttt{GET /login}, \texttt{POST /api/csrf-token}, \texttt{POST /api/users/token/login}, \texttt{POST /api/users/token/authenticate} \\
+03 & Pedir pizza 1      & \texttt{POST /api/pizza} \\
+04 & Calificar pizza 1  & \texttt{POST /api/ratings} (\emph{Love it} o \emph{No thanks}, pizza 1) \\
+05 & Pedir pizza 2      & \texttt{POST /api/pizza} \\
+06 & Calificar pizza 2  & \texttt{POST /api/ratings} (\emph{Love it} o \emph{No thanks}, pizza 2) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Entre cada grupo se aplica un \emph{think time} aleatorio de 1 a 3 segundos para
+simular a una persona real. Por eso cada iteración dura entre 10 y 20\,s
+(unos 15\,s de media), aunque cada petición responde en unos 200\,ms.
+
+Desde la v4, la calificación de las pizzas sigue una distribución: k6 cuenta los
+resultados con las métricas personalizadas \texttt{love\_it} y \texttt{no\_thanks}.
+Cada iteración registra dos calificaciones, y en las corridas se observó una
+proporción aproximada de 80\,\% \emph{Love it} y 20\,\% \emph{No thanks}.
+
+\subsection{Perfil de carga y tipos de prueba}
+
+Los escenarios de la versión V5 reutilizan el mismo flujo de negocio
+(\texttt{scenarios/\allowbreak orderPizza.js}). Cada script solo define sus propias
+\texttt{options}: usuarios virtuales, etapas y umbrales.
+
+\begin{table}[H]
+\centering
+\caption{Escenarios de prueba (V5).}
+\begin{tabularx}{\textwidth}{l l c c >{\raggedright\arraybackslash}X}
+\toprule
+\rowcolor{ucbazul}
+\encab{Escenario} & \encab{Script} & \encab{VUs máx.} & \encab{Duración} & \encab{Propósito} \\
+\midrule
+\esmoke  & \texttt{quickpizza-v5-smoke.js}  & 1   & 1 iteración          & Validar el flujo antes de cargar \\
+\eload   & \texttt{quickpizza-v5-load.js}   & 100 & 5\,min (3 etapas)    & Carga nominal sostenida \\
+\espike  & \texttt{quickpizza-v5-spike.js}  & 100 & 2\,min 10\,s (4 etapas) & Subida brusca de usuarios \\
+\estress & \texttt{quickpizza-v5-stress.js} & 400 & 5\,min (5 etapas)    & Superar la carga nominal \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+El \emph{spike} sube de 9 a 100 VUs en solo 10 segundos (unos 9 usuarios nuevos por
+segundo), los sostiene durante un minuto y luego baja. Su pico es igual al máximo
+del \emph{load}: se diferencia por la velocidad de llegada de los usuarios, no por
+la cantidad. El \emph{stress} sube en escalones de un minuto (100, 200, 300 y
+400 VUs) y luego baja.
+
+\begin{figure}[H]
+\centering
+\perfil{Load}{100}{300}{(0,0) (60,100) (242,100) (300,0)}{0/0, 60/1, 120/2, 180/3, 240/4, 300/5 min}\hfill
+\perfil{Spike}{100}{130}{(0,0) (30,9) (40,100) (100,100) (130,0)}{0/0, 40/40, 100/100, 130/130 s}\hfill
+\perfil{Stress}{400}{300}{(0,0) (60,100) (120,200) (180,300) (240,400) (300,0)}{0/0, 60/1, 120/2, 180/3, 240/4, 300/5 min}
+\caption{Perfil de carga de cada escenario (usuarios virtuales en el tiempo).}
+\end{figure}
+
+%==================================================================
+\section{Desarrollo de scripts en k6}
+%==================================================================
+
+\subsection{Herramientas y entorno}
+
+\begin{table}[H]
+\centering
+\caption{Herramientas utilizadas.}
+\begin{tabularx}{\textwidth}{l X}
+\toprule
+\rowcolor{ucbazul}
+\encab{Herramienta} & \encab{Uso} \\
+\midrule
+Grafana k6 Studio 2.1.3 & Grabación del flujo y generación del script base (v1) \\
+Grafana k6 (CLI)        & Ejecución de los scripts de carga \\
+Visual Studio Code      & Edición del código \\
+Git y GitHub            & Control de versiones y trabajo en equipo (ramas por paso) \\
+Grafana k6 web dashboard & Visualización de métricas en tiempo real (\texttt{localhost:5665}) y reportes HTML \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Grabación del flujo con k6 Studio (v1)}
+
+El recorrido se grabó con k6 Studio y se generó el script base con el asistente
+de prueba. El script v1 contenía todas las peticiones del navegador con valores
+fijos (tokens, cabeceras \texttt{traceparent}) y un solo check de status por petición.
+
+\begin{pendiente}Capturas de la grabación y del script generado por el asistente.\end{pendiente}
+
+\subsection{Correlación de valores dinámicos (v2 y v3)}
+
+La correlación consiste en capturar valores que genera el servidor y reutilizarlos
+en las peticiones siguientes. Se implementaron tres correlaciones:
+
+\begin{table}[H]
+\centering
+\caption{Correlaciones implementadas.}
+\begin{tabularx}{\textwidth}{c l l >{\raggedright\arraybackslash}X}
+\toprule
+\rowcolor{ucbazul}
+\encab{\#} & \encab{Valor} & \encab{Técnica} & \encab{Origen y uso} \\
+\midrule
+1 & \texttt{csrf\_token} & Regex & Se extrae de la cabecera \texttt{Set-Cookie} de \texttt{POST /api/csrf-token} y se envía en el body del login \\
+2 & Token de sesión & JSONPath (\texttt{token}) & Se extrae de la respuesta del login y se envía en la cabecera \texttt{Authorization} \\
+3 & \texttt{pizza.id} & JSONPath (\texttt{pizza.id}) & Se extrae de \texttt{POST /api/pizza} y se envía en \texttt{POST /api/ratings} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Hallazgos de la v1 a la v2:}
+\begin{itemize}
+  \item El asistente de k6 Studio detectó automáticamente la correlación del \texttt{csrf\_token}.
+  \item No detectó la del \texttt{pizza\_id}: las calificaciones fallaban con \textbf{400}.
+  \item Al correlacionarlo en modo JSON, k6 Studio lo enviaba como texto (\texttt{"20623"}) y el
+        servidor (escrito en Go) esperaba un número entero. Se resolvió con un \emph{Replacer}
+        en modo \emph{Begin-End}, obteniendo \textbf{201 Created}.
+\end{itemize}
+
+\textbf{Correcciones de la v2 a la v3:}
+\begin{itemize}
+  \item \emph{Love it} calificaba la pizza equivocada (usaba el ID de la primera). Ahora cada pizza guarda su propio ID.
+  \item Los grupos \emph{No thanks} y \emph{Love it} repetían \texttt{POST /api/pizza} (ruido de la grabación),
+        lo que inflaba el RPS. Se eliminaron.
+  \item Se quitaron los tokens y \texttt{traceparent} fijos de la grabación.
+  \item La extracción por regex ya no detiene la iteración si falta la cabecera.
+\end{itemize}
+
+Para evidenciar la correlación, el script tiene un \textbf{modo debug} que muestra
+en la terminal los valores capturados en cada iteración:
+
+\begin{gitbash}
+(*\prompt*)
+$ k6 run -e DEBUG=true --vus 1 --iterations 2 scripts/quickpizza-v3-modular.js
+\end{gitbash}
+
+\captura{images/correlacion-debug.png}{Valores correlacionados en dos iteraciones (modo debug).}
+
+El \texttt{csrf\_token} y los \texttt{pizza.id} cambian en cada iteración. El token
+de sesión del usuario \texttt{default} es fijo por diseño de QuickPizza, pero el
+script no lo tiene escrito en el código: lo lee de la respuesta del login.
+
+\subsection{Parametrización con SharedArray (v3)}
+\label{sec:parametrizacion}
+
+Los datos externos se cargan con \texttt{SharedArray}, que lee cada archivo
+\textbf{una sola vez} y comparte los datos (solo lectura) entre todos los usuarios
+virtuales. Con 100 VUs esto evita 100 copias de los mismos datos en memoria.
+
+\begin{archivo}[language=JavaScript]{utils/data.js}
+export const pizzas = new SharedArray("pizzas", function () {
+  return parseCsv(open("../data/pizzas.csv")).map((p) => ({
+    customName: p.customName,
+    maxCaloriesPerSlice: Number(p.maxCaloriesPerSlice),
+    mustBeVegetarian: p.mustBeVegetarian === "true",
+    ...
+  }));
+});
+\end{archivo}
+
+\begin{itemize}
+  \item \textbf{\texttt{data/pizzas.csv}:} 30 pizzas con nombre, calorías máximas por porción
+        (700 a 1200), si es vegetariana, mínimo y máximo de toppings y herramienta excluida.
+        Cada pedido usa una pizza al azar.
+  \item \textbf{\texttt{data/users.csv}:} credenciales de inicio de sesión.
+\end{itemize}
+
+\textbf{Hallazgo sobre los usuarios:} se intentó usar 30 usuarios propios registrados
+con \texttt{POST /api/users}. El registro respondía \emph{username already taken}
+(el usuario existía), pero el login del \textbf{mismo} usuario a veces respondía 200
+y a veces \textbf{401 authentication failed}. La hipótesis es que el sitio público
+tiene varias réplicas y cada una guarda sus propios usuarios. Por eso se usa el
+usuario \texttt{default}, que existe en todas las réplicas. El login se mantiene en
+cada iteración como parte de la transacción completa.
+
+\subsection{Validaciones de negocio con \texorpdfstring{\texttt{check()}}{check()}}
+
+Cada iteración ejecuta 20 validaciones distintas, de tres tipos:
+
+\begin{itemize}
+  \item \textbf{Códigos de estado:} home, página de login, csrf, login, authenticate
+        y pizza (200); calificación (201 Created).
+  \item \textbf{Tiempos de respuesta:} la home, el csrf, el login, el pedido de pizza
+        y la calificación deben responder en menos de 500\,ms
+        (\texttt{r.timings.duration}). El límite está en \texttt{config/settings.js}
+        y se puede cambiar con \texttt{-e MAX\_RESPONSE\_MS=...}.
+  \item \textbf{Contenido de las respuestas:}
+        \begin{itemize}
+          \item la home devuelve la página HTML de QuickPizza;
+          \item se extrae el \texttt{csrf\_token} y el token de sesión tiene 16 caracteres;
+          \item el usuario autenticado es el correcto;
+          \item la pizza recomendada tiene ID, nombre e ingredientes, y es vegetariana
+                cuando el pedido lo exige (\texttt{mustBeVegetarian});
+          \item la calificación guardada tiene el mismo \texttt{pizza\_id} y las mismas
+                estrellas que se enviaron.
+        \end{itemize}
+\end{itemize}
+
+Los checks del pedido de pizza y de la calificación se ejecutan dos veces por
+iteración (una por pizza), por eso k6 reporta \textbf{28 checks por iteración}.
+
+\begin{archivo}[language=JavaScript]{scenarios/orderPizza.js (checks de la calificación)}
+check(res, {
+  "rating: status 201": (r) => r.status === 201,
+  [`rating: responde en < ${MAX_RESPONSE_MS} ms`]: respondeRapido,
+  "rating: guarda la pizza y las estrellas": (r) =>
+    r.status === 201 &&
+    r.json("pizza_id") === pizzaId &&
+    r.json("stars") === stars,
+});
+\end{archivo}
+
+\textbf{Nota:} las corridas V5 de la sección~\ref{sec:resultados} se ejecutaron con
+la versión anterior de los checks (14 por iteración: códigos de estado,
+correlación y usuario autenticado), en la que se cumplió el 100\,\%. Los checks
+de tiempo y de contenido se agregaron después.
+
+\subsection{Definición de thresholds}
+
+Los umbrales provisionales heredados de k6 Studio (\texttt{http\_req\_duration}
+p(95) < 2100\,ms y p(99) < 2500\,ms) eran demasiado permisivos: los tiempos
+reales rondan los 200\,ms. En la versión V5 se ajustaron a los criterios de
+éxito, tanto en los cuatro escenarios nuevos como en el script v3:
+
+\begin{archivo}[language=JavaScript]{scripts/quickpizza-v5-*.js (options)}
+thresholds: {
+  http_req_duration: ["p(95)<500"],
+  http_req_failed: ["rate<0.01"],
+},
+\end{archivo}
+
+Si se supera un umbral, k6 marca la prueba como fallida y termina con un código
+de salida distinto de cero. Esto permite usar los scripts en un pipeline de CI.
+
+
+\subsection{Estructura del repositorio}
+
+El código está separado en datos, utilidades, configuración y escenarios:
+
+\begin{archivo}{Estructura del repositorio}
+quickpizza-performance-k6/
+|-- config/settings.js        URL base, think time y modo debug
+|-- data/users.csv            Credenciales
+|-- data/pizzas.csv           30 pizzas
+|-- utils/csv.js              Lector de CSV
+|-- utils/data.js             SharedArray de usuarios y pizzas
+|-- utils/http.js             Cabeceras y token anonimo
+|-- utils/auth.js             csrf (regex), login y authenticate
+|-- scenarios/orderPizza.js   Flujo de negocio (6 grupos)
+|-- scripts/                  Scripts por version:
+|     quickpizza-v3-modular.js      carga sostenida (v3)
+|     quickpizza-v5-smoke.js        smoke
+|     quickpizza-v5-load.js         carga
+|     quickpizza-v5-spike.js        spike
+|     quickpizza-v5-stress.js       estres
+|-- reports/                  Reportes de k6
+|-- docs/                     Informe y capturas
+`-- README.md
+\end{archivo}
+
+El trabajo se organiza con una rama por paso (\texttt{feature/pasoXX-tema} o
+\texttt{docs/tema}). Cada rama se revisa y se prueba antes de integrarla a
+\texttt{main}. Una vez integrada, se borra tanto en local como en GitHub. Por
+ejemplo, la rama \texttt{docs/update-readme-v5} se revisó con
+\texttt{git show --stat}, sus cuatro escenarios se ejecutaron en local y luego se
+integró a \texttt{main} con un \emph{fast-forward}, sin conflictos.
+
+%==================================================================
+\section{Ejecución y observabilidad con Grafana}
+%==================================================================
+
+\subsection{Configuración del envío de métricas}
+
+Para monitorear las pruebas en tiempo real se utilizó el \textbf{dashboard web
+integrado de Grafana k6}, que se ejecuta en el mismo equipo de pruebas
+(\texttt{http://localhost:5665}). Esta opción cumple con trabajar en
+\textbf{entorno local} sin instalar servicios adicionales ni usar Docker: k6 envía
+sus métricas al dashboard cada 10 segundos mientras corre la prueba y, al terminar,
+exporta un \textbf{reporte HTML interactivo} con las mismas gráficas en la carpeta
+\texttt{reports/} del repositorio.
+
+Cada escenario se ejecutó desde Git Bash con el dashboard habilitado. La salida de
+consola se guardó además en un archivo de texto con \texttt{tee}, como evidencia:
+
+\begin{gitbash}
+(*\prompt*)
+$ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=reports/reporte-load-100vus.html \
+  k6 run scripts/quickpizza-v5-load.js 2>&1 | tee reports/consola-load-100vus.txt
+
+(*\prompt*)
+$ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=reports/reporte-spike.html \
+  k6 run scripts/quickpizza-v5-spike.js 2>&1 | tee reports/consola-spike.txt
+
+(*\prompt*)
+$ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=reports/reporte-stress-400vus.html \
+  k6 run scripts/quickpizza-v5-stress.js
+\end{gitbash}
+
+Cada petición HTTP de \texttt{scenarios/\allowbreak orderPizza.js} y \texttt{utils/http.js}
+lleva la etiqueta \texttt{tags.name} con el nombre del endpoint (por ejemplo,
+\texttt{GET /}, \texttt{POST /api/csrf-token} o \texttt{POST /api/pizza}), lo que
+permite agrupar las métricas por endpoint en el dashboard y en el resumen de k6.
+
+La sintaxis \texttt{VARIABLE=valor comando} es de Bash (Git Bash). En PowerShell
+las variables se definen antes con \texttt{\$env:K6\_WEB\_DASHBOARD="true"}.
+
+El dashboard muestra las métricas clave que pide el análisis: tasa de peticiones
+por segundo (RPS), distribución de latencias (promedio, P90, P95 y P99), tasa de
+errores y número de usuarios virtuales activos, además del desglose de tiempos de
+cada petición (conexión, TLS, envío, espera y recepción).
+
+\subsection{Dashboard bajo carga máxima: RPS, latencias, errores y VUs}
+
+\bloque{A}{Carga nominal sostenida -- Load (100 VUs)}
+
+El escenario subió a 100 usuarios virtuales en el primer minuto y los
+\textbf{sostuvo durante unos 3 minutos} (del minuto 1:00 al 4:02), para luego bajar.
+
+\begin{itemize}
+  \item \textbf{VUs y throughput:} con la meseta de 100 VUs el sistema procesó una
+        tasa estable, con un promedio global de \textbf{68.8 req/s} y
+        \textbf{21\,619 peticiones} completadas en 1\,663 iteraciones.
+  \item \textbf{Latencias:} mediana de 218\,ms, P90 de 243\,ms, \textbf{P95 de
+        248.5\,ms} y \textbf{P99 de 266.4\,ms}, muy por debajo del umbral de 500\,ms.
+        La curva se mantuvo plana alrededor de 220\,ms durante toda la meseta.
+  \item \textbf{Errores y validaciones:} 0\,\% de peticiones fallidas y 100\,\% de
+        checks exitosos (23\,282 de 23\,282).
+\end{itemize}
+
+\captura{images/load-overview.png}{Dashboard Overview bajo carga nominal sostenida de 100 VUs (Request Rate, P95, VUs y Transfer Rate).}
+\captura{images/load-vus-latencias.png}{Load: 100 VUs activos, duración de peticiones HTTP (P90/P95/P99) y duración de iteración.}
+\captura{images/load-timings-1.png}{Load, pestaña Timings: Request Duration, Request Failed Rate, Request Rate y Request Waiting.}
+\captura{images/load-timings-2.png}{Load, pestaña Timings: TLS Handshaking, Request Sending, Connecting y Receiving.}
+\captura{images/load-summary.png}{Load: resumen estadístico (Summary) del reporte HTML.}
+
+\bloque{B}{Pico de usuarios -- Spike (100 VUs en 10 segundos)}
+
+Tras 30 segundos de calentamiento con menos de 10 VUs, la carga saltó de
+\textbf{9 a 100 VUs en 10 segundos}, se sostuvo durante un minuto y luego bajó.
+
+\begin{itemize}
+  \item \textbf{VUs y throughput:} 7\,800 peticiones en 600 iteraciones, con un
+        promedio de 55\,req/s (la prueba es más corta y parte de ella transcurre con
+        pocos usuarios).
+  \item \textbf{Latencias:} mediana de 220\,ms, P90 de 245\,ms, \textbf{P95 de
+        251.1\,ms} y \textbf{P99 de 290.2\,ms}. El sistema absorbió la llegada brusca de usuarios sin
+        degradación visible.
+  \item \textbf{Errores y validaciones:} 0\,\% de errores y 100\,\% de checks
+        exitosos (8\,400 de 8\,400).
+\end{itemize}
+
+\captura{images/spike-overview.png}{Dashboard Overview del escenario spike: salto de 9 a 100 VUs en 10 segundos.}
+\captura{images/spike-vus-latencias.png}{Spike: forma del pico de VUs y comportamiento de las latencias.}
+\captura{images/spike-timings-1.png}{Spike, pestaña Timings: Request Duration, Request Failed Rate, Request Rate y Request Waiting.}
+\captura{images/spike-summary.png}{Spike: resumen estadístico (Summary) del reporte HTML.}
+
+\bloque{C}{Carga máxima de estrés -- Stress (400 VUs)}
+
+La carga subió en escalones de un minuto (100, 200, 300 y 400 VUs) para evaluar
+el comportamiento al \textbf{cuadruplicar la carga nominal}. Las capturas se
+tomaron con el dashboard en vivo durante el tramo de máxima concurrencia.
+
+\begin{itemize}
+  \item \textbf{VUs y pico de RPS:} el throughput creció de forma pareja con los
+        usuarios, hasta un pico de \textbf{unos 330 req/s} con 400 VUs (alrededor
+        de las 20:44:50). En total se completaron unas 54\,500 peticiones y 4\,200
+        iteraciones, con un promedio de 172\,req/s.
+  \item \textbf{Latencias:} en el resultado global, mediana de 222\,ms, P90 de
+        257\,ms, \textbf{P95 de 278\,ms} y \textbf{P99 de 374\,ms}. En el minuto de
+        máxima concurrencia, el P99 subió hasta unos 470\,ms y el P95 hasta unos
+        350\,ms; al bajar los usuarios, ambos volvieron a unos 250\,ms.
+  \item \textbf{Origen del tiempo de respuesta:} \texttt{http\_req\_waiting}
+        (P95 = 277\,ms) es prácticamente igual a \texttt{http\_req\_duration}
+        (P95 = 278\,ms), mientras que \texttt{http\_req\_receiving} es mínimo
+        (P95 = 1\,ms). Casi todo el tiempo corresponde al \textbf{procesamiento en el
+        servidor}, no a la red ni a la descarga de datos.
+  \item \textbf{Errores y validaciones:} 0\,\% de errores y 100\,\% de checks
+        exitosos.
+\end{itemize}
+
+\captura{images/stress-overview.png}{Dashboard Overview bajo estrés: el RPS sube con los VUs hasta unos 310--330 req/s y 0\,\% de errores.}
+\captura{images/stress-vus-latencias.png}{Stress: escalera hasta 400 VUs y su bajada, con el aumento de P95/P99 en el minuto de máxima concurrencia.}
+\captura{images/stress-timings-1.png}{Stress, pestaña Timings: Request Duration y Request Waiting siguen la misma curva (tiempo de procesamiento en el servidor).}
+\captura{images/stress-timings-2.png}{Stress, pestaña Timings: TLS y Connecting solo al inicio (conexiones reutilizadas); Receiving se mantiene en pocos milisegundos.}
+\captura{images/stress-summary.png}{Stress: resumen estadístico (Summary): 54.5k peticiones, P90 = 257\,ms, P95 = 278\,ms, P99 = 374\,ms y 0\,\% de errores.}
+
+\subsection{Evidencias de ejecución}
+\label{sec:resultados}
+
+Los escenarios se ejecutaron el 18 de noviembre de 2026 contra \url{\appURL}.
+Todos pasaron los umbrales:
+
+\begin{table}[H]
+\centering
+\caption{Resultados de los escenarios V5.}
+\begin{tabularx}{\textwidth}{X r r r r r r r r}
+\toprule
+\rowcolor{ucbazul}
+\encab{Escenario} & \encab{VUs} & \encab{Peticiones} & \encab{Req/s} & \encab{Mediana} & \encab{P95} & \encab{P99} & \encab{Máx.} & \encab{Errores} \\
+\midrule
+\esmoke  & 1   & 13      & 0.8   & 205\,ms & 225\,ms   & --       & 226\,ms   & 0\,\% \\
+\eload   & 100 & 21\,619 & 68.8  & 218\,ms & 248.5\,ms & 266.4\,ms & 1\,240\,ms & 0\,\% \\
+\espike  & 100 & 7\,800  & 55.0  & 220\,ms & 251.1\,ms & 290.2\,ms & 1\,125\,ms & 0\,\% \\
+\estress & 400 & 54\,500 & 172.0 & 222\,ms & 278\,ms   & 374\,ms  & 1\,000\,ms & 0\,\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+\begin{table}[H]
+\centering
+\caption{Iteraciones, checks y calificaciones por escenario.}
+\begin{tabularx}{\textwidth}{l >{\hspace{1.2cm}}r >{\centering\arraybackslash}X r >{\hspace{0.6cm}}r}
+\toprule
+\rowcolor{ucbazul}
+\encab{Escenario} & \encab{Iteraciones} & \encab{Checks OK} & \encab{Love it} & \encab{No thanks} \\
+\midrule
+\esmoke  & 1       & 14 / 14           & 2       & 0       \\
+\eload   & 1\,663  & 23\,282 / 23\,282 & 2\,678  & 648     \\
+\espike  & 600     & 8\,400 / 8\,400   & 964     & 236     \\
+\estress & 4\,200  & 100\,\%           & 6\,800  & 1\,600  \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+En todos los escenarios, \texttt{love\_it} + \texttt{no\_thanks} es el doble de las
+iteraciones: ninguna iteración se interrumpió y todas las calificaciones quedaron
+registradas. Los valores del stress están redondeados por el dashboard.
+
+\textbf{Repetibilidad del escenario de estrés.} El stress de 400 VUs se ejecutó tres
+veces durante el proyecto, desde distintos equipos y en distintos momentos:
+
+\begin{table}[H]
+\centering
+\caption{Ejecuciones del escenario stress (400 VUs).}
+\begin{tabularx}{\textwidth}{X r r l}
+\toprule
+\rowcolor{ucbazul}
+\encab{Ejecución} & \encab{P95} & \encab{Errores} & \encab{Resultado} \\
+\midrule
+Corrida 1 (mañana)                   & 270\,ms & 0\,\% & \aprobado \\
+Corrida 2 (otro integrante del equipo) & 584\,ms & 0\,\% & \noaprobado{(P95 > 500\,ms)} \\
+Corrida 3 (noche, con dashboard)      & 278\,ms & 0\,\% & \aprobado \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+En ninguna de las tres hubo errores HTTP, pero en una el P95 superó el umbral. Con
+400 VUs el sistema trabaja cerca de su límite, y el resultado depende de las
+condiciones del momento (QuickPizza es un servicio público compartido con otros
+usuarios) y de la red desde donde se genera la carga. Las capturas de este informe
+corresponden a la corrida 3.
+
+\captura{images/v5-smoke.png}{Salida de consola del escenario smoke.}
+\captura{images/load-consola.png}{Salida de consola del escenario load (100 VUs).}
+\captura{images/spike-consola.png}{Salida de consola del escenario spike (100 VUs).}
+
+%==================================================================
+\section{Análisis de resultados}
+%==================================================================
+
+\subsection{Interpretación de gráficas}
+
+\begin{itemize}
+  \item \textbf{Smoke:} el flujo completo funciona con un usuario, con respuestas
+        de 200 a 226\,ms. Sirve como línea base.
+  \item \textbf{Load (100 VUs):} pasar de 1 a 100 usuarios casi no cambió la latencia
+        (P95 de 225 a 248.5\,ms) y la curva se mantuvo plana durante los 3 minutos de
+        meseta. La carga nominal se maneja con amplio margen frente al umbral.
+  \item \textbf{Spike (100 VUs en 10 s):} la llegada brusca de usuarios no causó
+        errores ni degradación: el P95 (251.1\,ms) es prácticamente igual al del
+        load. El sistema absorbe picos repentinos de esta magnitud.
+  \item \textbf{Stress (400 VUs):} el throughput escala casi en proporción a los
+        usuarios (hasta unos 330 req/s), pero en el escalón de 400 VUs aparece una
+        \textbf{degradación leve y reversible}: el P99 sube a unos 470\,ms y el P95 a
+        unos 350\,ms durante el pico, y vuelven a unos 250\,ms cuando bajan los
+        usuarios. La mediana casi no cambia (222\,ms), así que la mayoría de los
+        usuarios no lo nota.
+\end{itemize}
+
+En la pestaña Timings del stress, la conexión TCP y el \emph{handshake} TLS solo
+tienen picos al inicio, cuando entran usuarios nuevos; después quedan en 0\,ms
+porque k6 reutiliza las conexiones (\emph{keep-alive}).
+
+\subsection{Cuellos de botella identificados}
+
+\begin{hallazgo}
+{\sffamily\bfseries\color{ucbazulclaro} Hallazgo clave.} Casi todo el tiempo de respuesta
+corresponde al procesamiento en el servidor, y las operaciones que escriben datos
+(pedir y calificar pizzas) son las más lentas. Alrededor de 300--400 usuarios
+concurrentes las peticiones empiezan a hacer cola, pero sin errores.
+\end{hallazgo}
+
+Como QuickPizza es un servicio público, no se tiene acceso a sus métricas internas
+(CPU, memoria, base de datos). El diagnóstico se basa en lo que se observa desde el
+cliente:
+
+\begin{itemize}
+  \item \textbf{Procesamiento en el servidor.} En todos los escenarios el tiempo de
+        espera (\texttt{http\_req\_waiting}) explica casi todo el tiempo de respuesta,
+        y el de recepción es de pocos milisegundos. El cuello de botella está en el
+        procesamiento del backend (lógica de la aplicación o acceso a datos), no en
+        la red.
+  \item \textbf{Las escrituras son las operaciones más lentas.} El reporte HTML del
+        load desglosa los tiempos por grupo del flujo (tabla~\ref{tab:grupos}). Las
+        operaciones que escriben en el servidor (\texttt{POST /api/pizza} y, sobre
+        todo, \texttt{POST /api/ratings}) tardan unos 25--35\,ms más que las de
+        lectura de la página de inicio y el login. Calificar una pizza, que guarda
+        datos, es la operación más lenta (P99 de 285\,ms), lo que apunta al acceso a
+        la base de datos como el componente más costoso del flujo.
+  \item \textbf{Cercanía al límite con 400 VUs.} El aumento del P99 en el escalón
+        de máxima concurrencia, y la corrida en la que el P95 llegó a 584\,ms, indican
+        que alrededor de \textbf{300--400 usuarios concurrentes} las peticiones
+        empiezan a hacer cola en el servidor. No se rechazó ninguna petición: es una
+        degradación gradual, no una caída.
+  \item \textbf{Carga efectiva limitada por el \emph{think time}.} Cada iteración
+        dura unos 15\,s, casi todo de pausas, así que 100 VUs generan solo unos
+        70\,req/s. El número de VUs sobreestima la presión real sobre el servidor.
+  \item \textbf{Estado no compartido entre réplicas.} Los usuarios registrados no se
+        replican entre las instancias del sitio, lo que provoca respuestas 401
+        intermitentes en el login (ver sección~\ref{sec:parametrizacion}).
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Duración de las peticiones por grupo del flujo (load, 100 VUs).}
+\label{tab:grupos}
+\begin{tabularx}{\textwidth}{X l r r r r}
+\toprule
+\rowcolor{ucbazul}
+\encab{Grupo} & \encab{Tipo} & \encab{Peticiones} & \encab{Mediana} & \encab{P95} & \encab{P99} \\
+\midrule
+01. HomePage          & Lectura   & 6\,652 & 214\,ms & 227\,ms & 242\,ms \\
+02. Login             & Lectura / sesión & 8\,315 & 215\,ms & 228\,ms & 247\,ms \\
+03. Pedir pizza 1     & Escritura & 1\,663 & 234\,ms & 253\,ms & 274\,ms \\
+04. Calificar pizza 1 & Escritura & 1\,663 & 242\,ms & 261\,ms & 284\,ms \\
+05. Pedir pizza 2     & Escritura & 1\,663 & 235\,ms & 254\,ms & 279\,ms \\
+06. Calificar pizza 2 & Escritura & 1\,663 & 242\,ms & 260\,ms & 285\,ms \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Recomendaciones de optimización}
+
+\textbf{Para la aplicación:}
+\begin{itemize}
+  \item \textbf{Escalado horizontal:} añadir réplicas o configurar autoescalado
+        cuando la concurrencia se acerque a unos 300 usuarios, el punto en el que
+        empieza la degradación.
+  \item \textbf{Caché:} las peticiones de la página de inicio
+        (\texttt{/api/config}, \texttt{/api/quotes}, \texttt{/api/tools}) devuelven
+        datos que casi no cambian; servirlas desde caché reduce la carga del backend.
+  \item \textbf{Optimizar las escrituras en base de datos:} revisar las consultas de
+        \texttt{/api/ratings} y \texttt{/api/pizza} y crear índices sobre los campos
+        que se consultan al guardar una calificación (por ejemplo, el ID de la pizza
+        y del usuario), ya que son las operaciones más lentas del flujo.
+  \item \textbf{Sesiones compartidas:} guardar usuarios y sesiones en un
+        almacenamiento común a todas las réplicas (base de datos o caché central), o
+        usar \emph{sticky sessions} en el balanceador.
+  \item \textbf{Monitoreo de la cola de latencias:} vigilar el P99 en producción,
+        porque es donde aparecen los primeros síntomas de saturación.
+\end{itemize}
+
+\textbf{Para las pruebas:}
+\begin{itemize}
+  \item Subir el pico del \emph{spike} a 300--400 VUs para probar un pico mayor que
+        la carga nominal.
+  \item Agregar umbrales por endpoint (por ejemplo, el login) con etiquetas de k6,
+        para detectar degradaciones localizadas.
+  \item Ejecutar las pruebas de estrés pocas veces y de forma controlada, porque el
+        servicio es compartido y los resultados varían según el momento.
+\end{itemize}
+
+%==================================================================
+\section{Conclusiones}
+%==================================================================
+
+\begin{itemize}
+  \item QuickPizza cumple los criterios de éxito bajo carga nominal: con 100 VUs el
+        P95 fue de 248.5\,ms (umbral de 500\,ms), con 0\,\% de errores y 100\,\% de
+        checks. También superó el pico repentino de 100 VUs en 10 segundos.
+  \item Con 400 VUs (cuatro veces la carga nominal) el sistema sigue estable y sin
+        errores, pero se acerca a su límite: el P99 sube durante el pico y, en una de
+        tres ejecuciones, el P95 superó los 500\,ms. La capacidad recomendada se ubica
+        en torno a los 300 usuarios concurrentes.
+  \item El tiempo de respuesta depende casi por completo del procesamiento en el
+        servidor; la red no es un factor limitante.
+  \item La correlación (CSRF, token de sesión y \texttt{pizza.id}) y la
+        parametrización con \texttt{SharedArray} funcionan correctamente bajo carga:
+        miles de iteraciones completas sin un solo fallo de negocio.
+  \item La estructura modular permitió crear los escenarios V5 reutilizando el mismo
+        flujo (\texttt{scenarios/\allowbreak orderPizza.js}), cambiando solo las \texttt{options}.
+\end{itemize}
+
+\begin{pendiente}Revisar y completar las conclusiones con el equipo.\end{pendiente}
+
+%==================================================================
+\section{Anexos}
+%==================================================================
+
+\subsection{Repositorio y ejecución de las pruebas}
+
+Repositorio: \url{\repoURL}
+
+\begin{gitbash}
+(*\prompt*)
+$ # Prueba rapida (1 usuario)
+$ k6 run --vus 1 --iterations 1 scripts/quickpizza-v3-modular.js
+
+$ # Ver las correlaciones
+$ k6 run -e DEBUG=true --vus 1 --iterations 2 scripts/quickpizza-v3-modular.js
+
+$ # Carga completa (100 VUs)
+$ k6 run scripts/quickpizza-v3-modular.js
+
+$ # Escenarios V5
+$ k6 run scripts/quickpizza-v5-smoke.js
+$ k6 run scripts/quickpizza-v5-load.js
+$ k6 run scripts/quickpizza-v5-spike.js
+$ k6 run scripts/quickpizza-v5-stress.js
+\end{gitbash}
+
+\subsection{Reportes de ejecución en el repositorio}
+
+La evidencia de las corridas está en la carpeta \texttt{reports/} del repositorio:
+
+\begin{itemize}
+  \item \texttt{reporte-load-100vus.html}, \texttt{reporte-spike.html} y
+        \texttt{reporte-stress-400vus.html}: reportes interactivos del dashboard de
+        Grafana k6, con las mismas gráficas de este informe. Se abren descargándolos
+        y abriéndolos en un navegador.
+  \item \texttt{consola-load-100vus.txt} y \texttt{consola-spike.txt}: salida
+        completa de la consola de k6, con el resumen final de cada prueba.
+\end{itemize}
+
+\subsection{Integrantes y acceso al repositorio}
+
+El repositorio es público y el propietario agregó como colaboradores a los
+integrantes del equipo:
+
+\begin{table}[H]
+\centering
+\caption{Integrantes del equipo y sus cuentas de GitHub.}
+\begin{tabularx}{\textwidth}{X l l}
+\toprule
+\rowcolor{ucbazul}
+\encab{Integrante} & \encab{Usuario de GitHub} & \encab{Rol en el repositorio} \\
+\midrule
+Pablo Ivan Chuquimia Huanca    & \texttt{pchuquimia}      & Colaborador \\
+Mauricio Gutierrez Pacheco     & \texttt{ElNegis}         & Colaborador \\
+Rodrigo Camilo Mendez Gallardo & \texttt{CamiloMendez23}  & Colaborador \\
+Maria Alexandra Quintanilla    & \texttt{Marialejandra15} & Colaboradora \\
+Pedro Adrian Santos Orellana   & \texttt{nohpedro}        & Colaborador \\
+David Soliz Garcia             & \texttt{Soliz-G-David}   & Propietario \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Historial de commits}
+
+Historial de la rama \texttt{main} (obtenido con \texttt{git log}). Cada paso se
+trabajó en una rama propia, se revisó y se integró a \texttt{main}:
+
+\begin{table}[H]
+\centering
+\caption{Commits del proyecto en la rama \texttt{main}.}
+\begin{tabularx}{\textwidth}{l l l >{\raggedright\arraybackslash}X}
+\toprule
+\rowcolor{ucbazul}
+\encab{Commit} & \encab{Fecha} & \encab{Autor} & \encab{Descripción} \\
+\midrule
+\texttt{a66bc6e} & 16/11/2026 & David Soliz & Estructura base del proyecto + script v2 generado con k6 Studio (correlaciones csrf y \texttt{pizza\_id}) \\
+\texttt{e948877} & 17/11/2026 & David Soliz & [Paso 1] 2.c Parametrización: archivos CSV con credenciales y 30 pizzas \\
+\texttt{e8284a8} & 17/11/2026 & David Soliz & [Paso 1] 2.c Parametrización: carga de CSV con \texttt{SharedArray} para ahorrar memoria en los VUs \\
+\texttt{58cdcc9} & 17/11/2026 & David Soliz & [Paso 2] 2.c Correlación: csrf (regex), token de sesión y \texttt{pizza.id} (JSONPath) + script v3 modular \\
+\texttt{dfd5b63} & 17/11/2026 & Alexandra Quintanilla & Distribución de calificaciones (v4) \\
+\texttt{56ce305} & 17/11/2026 & Alexandra Quintanilla & Escenarios V5 (smoke, load, spike, stress), umbrales p(95) < 500\,ms y README actualizado \\
+\texttt{3cba42c} & 18/11/2026 & David Soliz & Reportes de ejecución (salida de consola de load y spike) \\
+\texttt{7c7286b} & 18/11/2026 & David Soliz & Reportes HTML del dashboard k6 (load, spike y stress) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Scripts de k6}
+
+Código final de los archivos principales. El repositorio completo está en
+\url{\repoURL}.
+
+\begin{archivo}[language=JavaScript]{scenarios/orderPizza.js}
+// =====================================================================
+// scenarios/orderPizza.js
+// Flujo de negocio: un usuario entra a QuickPizza, inicia sesión,
+// pide una pizza, la califica, pide otra y la vuelve a calificar.
+//
+// V4:
+//  - Parametrización mediante CSV.
+//  - Conversión de tipos correctos para el backend.
+//  - Correlación de CSRF, sesión y pizza.id.
+//  - Cada pizza conserva su propio ID.
+//  - Distribución de calificaciones: 80% Love it / 20% No thanks.
+//  - Contadores para medir la distribución de Love it / No thanks.
+//
+// V6:
+//  - Checks de tiempo de respuesta (< MAX_RESPONSE_MS) en cada petición validada.
+//  - Checks de contenido: HTML de la home, nombre e ingredientes de la pizza,
+//    pizza vegetariana cuando se pide y datos de la calificación registrada.
+// =====================================================================
+
+import http from "k6/http";
+import { group, check, sleep } from "k6";
+import { Counter } from "k6/metrics";
+
+import { BASE_URL, THINK_TIME, MAX_RESPONSE_MS, debugLog } from "../config/settings.js";
+import { htmlHeaders, apiParams, randomToken } from "../utils/http.js";
+import { getCsrfToken, login, authenticate } from "../utils/auth.js";
+import { getUserForVU, getRandomPizza } from "../utils/data.js";
+
+// Contadores para verificar la distribución 80/20.
+const loveItCounter = new Counter("love_it");
+const noThanksCounter = new Counter("no_thanks");
+
+// Check de tiempo: la petición respondió antes del límite configurado.
+function respondeRapido(r) {
+  return r.timings.duration < MAX_RESPONSE_MS;
+}
+
+function thinkTime() {
+  sleep(
+    THINK_TIME.min +
+      Math.random() * (THINK_TIME.max - THINK_TIME.min)
+  );
+}
+
+// Determina aleatoriamente si la pizza recibe Love it.
+// Aproximadamente 80% = Love it
+// Aproximadamente 20% = No thanks
+function shouldLoveIt() {
+  return Math.random() < 0.8;
+}
+
+// Pide una pizza con los datos del CSV y devuelve su ID.
+// Correlación JSONPath: pizza.id
+function orderPizza(token, pizzaData) {
+  const res = http.post(
+    `${BASE_URL}/api/pizza`,
+    JSON.stringify(pizzaData),
+    apiParams(token, "POST /api/pizza"),
+  );
+
+  const pizzaId = res.status === 200 ? res.json("pizza.id") : null;
+
+  debugLog(
+    `Correlación 3 (JSONPath) pizza.id ("${pizzaData.customName}")`,
+    pizzaId
+  );
+
+  // Lee el body una sola vez; si no es JSON válido, queda en null.
+  let body = null;
+  try {
+    body = res.json();
+  } catch (e) {
+    body = null;
+  }
+  const pizza = body && body.pizza ? body.pizza : null;
+
+  check(res, {
+    "pizza: status 200": (r) => r.status === 200,
+    "pizza: tiene id": () => pizzaId !== null,
+    [`pizza: responde en < ${MAX_RESPONSE_MS} ms`]: respondeRapido,
+    "pizza: tiene nombre e ingredientes": () =>
+      pizza !== null &&
+      typeof pizza.name === "string" &&
+      pizza.name.length > 0 &&
+      Array.isArray(pizza.ingredients) &&
+      pizza.ingredients.length > 0,
+    "pizza: es vegetariana si se pidió": () =>
+      !pizzaData.mustBeVegetarian || (body !== null && body.vegetarian === true),
+  });
+
+  return pizzaId;
+}
+
+// Califica una pizza.
+// pizza_id debe enviarse como número porque el servidor Go espera int64.
+function ratePizza(token, pizzaId, stars) {
+  const res = http.post(
+    `${BASE_URL}/api/ratings`,
+    JSON.stringify({
+      pizza_id: pizzaId,
+      stars: stars,
+    }),
+    apiParams(token, "POST /api/ratings"),
+  );
+
+  check(res, {
+    "rating: status 201": (r) => r.status === 201,
+    [`rating: responde en < ${MAX_RESPONSE_MS} ms`]: respondeRapido,
+    "rating: guarda la pizza y las estrellas": (r) =>
+      r.status === 201 &&
+      r.json("pizza_id") === pizzaId &&
+      r.json("stars") === stars,
+  });
+
+  return res;
+}
+
+export function orderPizzaFlow() {
+  const user = getUserForVU();
+  const anonToken = randomToken();
+  let token = null;
+
+  group("01. HomePage", function () {
+    const res = http.get(
+      `${BASE_URL}/`,
+      Object.assign(htmlHeaders(), {
+        tags: { name: "GET /" },
+      }),
+    );
+
+    check(res, {
+      "home: status 200": (r) => r.status === 200,
+      [`home: responde en < ${MAX_RESPONSE_MS} ms`]: respondeRapido,
+      "home: devuelve la página de QuickPizza": (r) =>
+        typeof r.body === "string" && r.body.includes("<html") && r.body.includes("pizza"),
+    });
+
+    http.get(
+      `${BASE_URL}/api/config`,
+      apiParams(null, "GET /api/config")
+    );
+
+    http.get(
+      `${BASE_URL}/api/quotes`,
+      apiParams(null, "GET /api/quotes")
+    );
+
+    http.get(
+      `${BASE_URL}/api/tools`,
+      apiParams(anonToken, "GET /api/tools")
+    );
+  });
+
+  thinkTime();
+
+  group("02. Login", function () {
+    const res = http.get(
+      `${BASE_URL}/login`,
+      Object.assign(htmlHeaders(`${BASE_URL}/`), {
+        tags: { name: "GET /login" },
+      }),
+    );
+
+    check(res, {
+      "login page: status 200": (r) => r.status === 200,
+    });
+
+    const csrfToken = getCsrfToken();
+
+    // Correlación 1: Regex
+    if (!csrfToken) return;
+
+    // Correlación 2: JSONPath
+    token = login(user, csrfToken);
+
+    if (!token) return;
+
+    authenticate(token, user.username);
+
+    http.get(
+      `${BASE_URL}/api/ratings`,
+      apiParams(token, "GET /api/ratings")
+    );
+  });
+
+  // Si el login falla, no tiene sentido continuar.
+  if (!token) return;
+
+  thinkTime();
+
+  let firstPizzaId = null;
+
+  group("03. Pedir pizza 1", function () {
+    firstPizzaId = orderPizza(
+      token,
+      getRandomPizza()
+    );
+  });
+
+  thinkTime();
+
+  group("04. Calificar pizza 1", function () {
+    if (firstPizzaId !== null) {
+      const loveIt = shouldLoveIt();
+
+      if (loveIt) {
+        loveItCounter.add(1);
+        ratePizza(token, firstPizzaId, 5);
+      } else {
+        noThanksCounter.add(1);
+        ratePizza(token, firstPizzaId, 1);
+      }
+    }
+  });
+
+  thinkTime();
+
+  let secondPizzaId = null;
+
+  group("05. Pedir pizza 2", function () {
+    secondPizzaId = orderPizza(
+      token,
+      getRandomPizza()
+    );
+  });
+
+  thinkTime();
+
+  group("06. Calificar pizza 2", function () {
+    if (secondPizzaId !== null) {
+      const loveIt = shouldLoveIt();
+
+      if (loveIt) {
+        loveItCounter.add(1);
+        ratePizza(token, secondPizzaId, 5);
+      } else {
+        noThanksCounter.add(1);
+        ratePizza(token, secondPizzaId, 1);
+      }
+    }
+  });
+
+  thinkTime();
+}
+\end{archivo}
+
+\begin{archivo}[language=JavaScript]{utils/auth.js}
+// =====================================================================
+// utils/auth.js
+// Autenticación y correlación de tokens.
+//
+// Correlación 1 (Regex):    csrf_token  -> se extrae de la cabecera Set-Cookie
+// Correlación 2 (JSONPath): token       -> se extrae del body JSON del login
+// =====================================================================
+
+import http from "k6/http";
+import { check } from "k6";
+import { BASE_URL, MAX_RESPONSE_MS, debugLog } from "../config/settings.js";
+import { apiParams } from "./http.js";
+
+// ---------------------------------------------------------------------
+// POST /api/csrf-token
+// El servidor responde con: Set-Cookie: csrf_token=XXXX; Path=/; SameSite=Strict
+// ---------------------------------------------------------------------
+export function getCsrfToken() {
+  const res = http.post(`${BASE_URL}/api/csrf-token`, null, {
+    headers: { accept: "*/*", origin: BASE_URL, referer: `${BASE_URL}/login` },
+    tags: { name: "POST /api/csrf-token" },
+  });
+
+  // Se valida que la cabecera exista antes de aplicar la regex
+  // (en la v2 un header vacío rompía la iteración).
+  const setCookie = res.headers["Set-Cookie"] || "";
+  const match = setCookie.match(/csrf_token=([A-Za-z0-9]+);/);
+  const csrfToken = match ? match[1] : null;
+  debugLog("Correlación 1 (Regex)    csrf_token", csrfToken);
+
+  check(res, {
+    "csrf: status 200": (r) => r.status === 200,
+    "csrf: token extraído": () => csrfToken !== null,
+    [`csrf: responde en < ${MAX_RESPONSE_MS} ms`]: (r) => r.timings.duration < MAX_RESPONSE_MS,
+  });
+
+  return csrfToken;
+}
+
+// ---------------------------------------------------------------------
+// POST /api/users/token/login?set_cookie=true
+// El csrf enviado en el body debe coincidir con la cookie csrf_token.
+// Respuesta: { "token": "XXXXXXXXXXXXXXXX" }  -> se extrae con JSONPath
+// ---------------------------------------------------------------------
+export function login(user, csrfToken) {
+  const params = apiParams(null, "POST /api/users/token/login", `${BASE_URL}/login`);
+  // Se envía la cookie csrf_token de forma explícita (igual que en la v2):
+  // el servidor compara esta cookie con el campo "csrf" del body.
+  params.cookies = {
+    csrf_token: { value: csrfToken, replace: true },
+  };
+
+  const res = http.post(
+    `${BASE_URL}/api/users/token/login?set_cookie=true`,
+    JSON.stringify({
+      username: user.username,
+      password: user.password,
+      csrf: csrfToken,
+    }),
+    params,
+  );
+
+  const token = res.status === 200 ? res.json("token") : null;
+  debugLog("Correlación 2 (JSONPath) token de sesión", token);
+
+  if (res.status !== 200) {
+    console.warn(`[login] ${user.username} -> status ${res.status} | body: ${res.body}`);
+  }
+
+  check(res, {
+    "login: status 200": (r) => r.status === 200,
+    "login: token de 16 caracteres": () => token !== null && token.length === 16,
+    [`login: responde en < ${MAX_RESPONSE_MS} ms`]: (r) => r.timings.duration < MAX_RESPONSE_MS,
+  });
+
+  return token;
+}
+
+// ---------------------------------------------------------------------
+// POST /api/users/token/authenticate
+// Confirma que el token capturado es válido y pertenece al usuario.
+// ---------------------------------------------------------------------
+export function authenticate(token, username) {
+  const res = http.post(
+    `${BASE_URL}/api/users/token/authenticate`,
+    null,
+    apiParams(token, "POST /api/users/token/authenticate"),
+  );
+
+  check(res, {
+    "authenticate: status 200": (r) => r.status === 200,
+    "authenticate: usuario correcto": (r) => r.status === 200 && r.json("username") === username,
+  });
+
+  return res;
+}
+\end{archivo}
+
+\begin{archivo}[language=JavaScript]{config/settings.js}
+// =====================================================================
+// config/settings.js
+// Configuración general del proyecto (URL base, tiempos de espera, debug).
+// La URL se puede cambiar sin tocar el código:
+//   k6 run -e BASE_URL=http://localhost:3333 scripts/quickpizza-v3-modular.js
+// =====================================================================
+
+export const BASE_URL = __ENV.BASE_URL || "https://quickpizza.grafana.com";
+
+// Think time (segundos) entre pasos del usuario: simula a una persona real.
+export const THINK_TIME = {
+  min: 1,
+  max: 3,
+};
+
+// Modo debug: muestra en la terminal los valores correlacionados.
+//   k6 run -e DEBUG=true --vus 1 --iterations 2 scripts/quickpizza-v3-modular.js
+export const DEBUG = __ENV.DEBUG === "true";
+
+// Tiempo máximo de respuesta (ms) que validan los checks de cada petición.
+// Coincide con el criterio de éxito (P95 < 500 ms). Se puede cambiar sin tocar el código:
+//   k6 run -e MAX_RESPONSE_MS=800 scripts/quickpizza-v5-load.js
+export const MAX_RESPONSE_MS = Number(__ENV.MAX_RESPONSE_MS) || 500;
+
+export function debugLog(label, value) {
+  if (DEBUG) {
+    console.log(`[VU ${__VU} | iteración ${__ITER}] ${label} = ${value}`);
+  }
+}
+\end{archivo}
+
+\begin{archivo}[language=JavaScript]{scripts/quickpizza-v5-stress.js}
+import { orderPizzaFlow } from "../scenarios/orderPizza.js";
+
+export const options = {
+  stages: [
+    { target: 100, duration: "1m" },
+    { target: 200, duration: "1m" },
+    { target: 300, duration: "1m" },
+    { target: 400, duration: "1m" },
+    { target: 0, duration: "1m" },
+  ],
+
+  thresholds: {
+    http_req_duration: ["p(95)<500"],
+    http_req_failed: ["rate<0.01"],
+  },
+};
+
+export default function () {
+  orderPizzaFlow();
+}
+\end{archivo}
+
+\end{document}
