@@ -1,0 +1,5 @@
+global:
+  scrape_interval: 5s
+
+# Las métricas de k6 ingresan por remote write (/api/v1/write).
+scrape_configs: []

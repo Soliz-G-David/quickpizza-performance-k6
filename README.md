@@ -69,7 +69,7 @@ quickpizza-performance-k6/
 | **v3** | Estructura modular + parametrización mediante **SharedArray** y archivos CSV + think time + hasta 100 VUs | ✅ |
 | **v4** | Checks de negocio + comportamiento probabilístico 80 % *Love it* / 20 % *No thanks* | ✅ |
 | **v5** | Thresholds + perfiles de carga: smoke, load, spike y stress | ✅ |
-| **v6** | Métricas en tiempo real hacia Grafana local + dashboard | ⏳ |
+| **v6** | Checks de tiempos + métricas hacia Prometheus y Grafana local + dashboard | Implementado |
 
 ---
 
@@ -321,21 +321,16 @@ Los resultados detallados, métricas, gráficas y análisis de estos escenarios 
 
 # v6 – Observabilidad con Grafana
 
-**Estado: ⏳ En desarrollo**
+Los checks de tiempo validan cada solicitud del flujo modular contra un límite de 500 ms, configurable con `MAX_RESPONSE_MS`. Los thresholds de v5 mantienen P95 < 500 ms y errores HTTP < 1 %.
 
-El objetivo de esta versión es integrar las métricas generadas por k6 con **Grafana local** y construir un dashboard para observar el comportamiento de las pruebas en tiempo real.
+La integración utiliza k6 → Prometheus → Grafana mediante remote write e histogramas nativos, con instalación local de los ejecutables.
 
-El dashboard contemplará métricas como:
+- Dashboard importable en `observability/quickpizza-dashboard.json`.
+- Paneles de RPS, P90/P95/P99, errores HTTP, VUs y checks de tiempo por endpoint.
+- Runners para PowerShell (`scripts/run-grafana.ps1`) y Bash (`scripts/run-grafana.sh`).
+- Filtro por identificador único de ejecución y resumen JSON en `reports/`.
 
-- Requests por segundo (RPS).
-- P90.
-- P95.
-- P99.
-- Error rate.
-- VUs activos.
-- Duración de las solicitudes.
-
-La integración permitirá complementar los resultados numéricos de k6 con una representación gráfica del comportamiento del sistema durante las pruebas de carga.
+Consultar la [guía de instalación y ejecución sin Docker](docs/grafana-sin-docker.md).
 
 ---
 
@@ -420,7 +415,7 @@ Dashboard:
 http://localhost:5665
 ```
 
-> Este dashboard corresponde a la funcionalidad web integrada de k6. La integración con **Grafana local** y el dashboard definitivo forman parte de la implementación de v6.
+> Este dashboard corresponde a la funcionalidad web integrada de k6. Para abrir el dashboard de Grafana local, seguir la [guía de v6](docs/grafana-sin-docker.md).
 
 ---
 

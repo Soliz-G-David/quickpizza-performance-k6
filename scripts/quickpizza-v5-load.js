@@ -1,6 +1,7 @@
 import { orderPizzaFlow } from "../scenarios/orderPizza.js";
 
 export const options = {
+  summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
   stages: [
     { target: 100, duration: "1m" },
     { target: 100, duration: "3m" },

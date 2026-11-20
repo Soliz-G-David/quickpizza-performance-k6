@@ -7,8 +7,9 @@
 // =====================================================================
 
 import http from "k6/http";
+import { checkResponseTime } from "./checks.js";
 import { check } from "k6";
-import { BASE_URL, MAX_RESPONSE_MS, debugLog } from "../config/settings.js";
+import { BASE_URL, debugLog } from "../config/settings.js";
 import { apiParams } from "./http.js";
 
 // ---------------------------------------------------------------------
@@ -21,6 +22,8 @@ export function getCsrfToken() {
     tags: { name: "POST /api/csrf-token" },
   });
 
+  checkResponseTime(res, "POST /api/csrf-token");
+
   // Se valida que la cabecera exista antes de aplicar la regex
   // (en la v2 un header vacío rompía la iteración).
   const setCookie = res.headers["Set-Cookie"] || "";
@@ -31,7 +34,6 @@ export function getCsrfToken() {
   check(res, {
     "csrf: status 200": (r) => r.status === 200,
     "csrf: token extraído": () => csrfToken !== null,
-    [`csrf: responde en < ${MAX_RESPONSE_MS} ms`]: (r) => r.timings.duration < MAX_RESPONSE_MS,
   });
 
   return csrfToken;
@@ -60,6 +62,8 @@ export function login(user, csrfToken) {
     params,
   );
 
+  checkResponseTime(res, "POST /api/users/token/login");
+
   const token = res.status === 200 ? res.json("token") : null;
   debugLog("Correlación 2 (JSONPath) token de sesión", token);
 
@@ -70,7 +74,6 @@ export function login(user, csrfToken) {
   check(res, {
     "login: status 200": (r) => r.status === 200,
     "login: token de 16 caracteres": () => token !== null && token.length === 16,
-    [`login: responde en < ${MAX_RESPONSE_MS} ms`]: (r) => r.timings.duration < MAX_RESPONSE_MS,
   });
 
   return token;
@@ -86,6 +89,8 @@ export function authenticate(token, username) {
     null,
     apiParams(token, "POST /api/users/token/authenticate"),
   );
+
+  checkResponseTime(res, "POST /api/users/token/authenticate");
 
   check(res, {
     "authenticate: status 200": (r) => r.status === 200,

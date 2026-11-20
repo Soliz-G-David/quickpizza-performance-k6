@@ -18,10 +18,11 @@
 // =====================================================================
 
 import http from "k6/http";
+import { checkResponseTime } from "../utils/checks.js";
 import { group, check, sleep } from "k6";
 import { Counter } from "k6/metrics";
 
-import { BASE_URL, THINK_TIME, MAX_RESPONSE_MS, debugLog } from "../config/settings.js";
+import { BASE_URL, THINK_TIME, debugLog } from "../config/settings.js";
 import { htmlHeaders, apiParams, randomToken } from "../utils/http.js";
 import { getCsrfToken, login, authenticate } from "../utils/auth.js";
 import { getUserForVU, getRandomPizza } from "../utils/data.js";
@@ -29,11 +30,6 @@ import { getUserForVU, getRandomPizza } from "../utils/data.js";
 // Contadores para verificar la distribución 80/20.
 const loveItCounter = new Counter("love_it");
 const noThanksCounter = new Counter("no_thanks");
-
-// Check de tiempo: la petición respondió antes del límite configurado.
-function respondeRapido(r) {
-  return r.timings.duration < MAX_RESPONSE_MS;
-}
 
 function thinkTime() {
   sleep(
@@ -58,6 +54,8 @@ function orderPizza(token, pizzaData) {
     apiParams(token, "POST /api/pizza"),
   );
 
+  checkResponseTime(res, "POST /api/pizza");
+
   const pizzaId = res.status === 200 ? res.json("pizza.id") : null;
 
   debugLog(
@@ -77,7 +75,6 @@ function orderPizza(token, pizzaData) {
   check(res, {
     "pizza: status 200": (r) => r.status === 200,
     "pizza: tiene id": () => pizzaId !== null,
-    [`pizza: responde en < ${MAX_RESPONSE_MS} ms`]: respondeRapido,
     "pizza: tiene nombre e ingredientes": () =>
       pizza !== null &&
       typeof pizza.name === "string" &&
@@ -103,9 +100,10 @@ function ratePizza(token, pizzaId, stars) {
     apiParams(token, "POST /api/ratings"),
   );
 
+  checkResponseTime(res, "POST /api/ratings");
+
   check(res, {
     "rating: status 201": (r) => r.status === 201,
-    [`rating: responde en < ${MAX_RESPONSE_MS} ms`]: respondeRapido,
     "rating: guarda la pizza y las estrellas": (r) =>
       r.status === 201 &&
       r.json("pizza_id") === pizzaId &&
@@ -128,27 +126,31 @@ export function orderPizzaFlow() {
       }),
     );
 
+    checkResponseTime(res, "GET /");
+
     check(res, {
       "home: status 200": (r) => r.status === 200,
-      [`home: responde en < ${MAX_RESPONSE_MS} ms`]: respondeRapido,
       "home: devuelve la página de QuickPizza": (r) =>
         typeof r.body === "string" && r.body.includes("<html") && r.body.includes("pizza"),
     });
 
-    http.get(
+    const configResponse = http.get(
       `${BASE_URL}/api/config`,
       apiParams(null, "GET /api/config")
     );
+    checkResponseTime(configResponse, "GET /api/config");
 
-    http.get(
+    const quotesResponse = http.get(
       `${BASE_URL}/api/quotes`,
       apiParams(null, "GET /api/quotes")
     );
+    checkResponseTime(quotesResponse, "GET /api/quotes");
 
-    http.get(
+    const toolsResponse = http.get(
       `${BASE_URL}/api/tools`,
       apiParams(anonToken, "GET /api/tools")
     );
+    checkResponseTime(toolsResponse, "GET /api/tools");
   });
 
   thinkTime();
@@ -160,6 +162,8 @@ export function orderPizzaFlow() {
         tags: { name: "GET /login" },
       }),
     );
+
+    checkResponseTime(res, "GET /login");
 
     check(res, {
       "login page: status 200": (r) => r.status === 200,
@@ -177,10 +181,11 @@ export function orderPizzaFlow() {
 
     authenticate(token, user.username);
 
-    http.get(
+    const ratingsResponse = http.get(
       `${BASE_URL}/api/ratings`,
       apiParams(token, "GET /api/ratings")
     );
+    checkResponseTime(ratingsResponse, "GET /api/ratings");
   });
 
   // Si el login falla, no tiene sentido continuar.
