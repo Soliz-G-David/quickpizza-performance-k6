@@ -124,13 +124,13 @@ Cada ejecución corresponde a un proceso de k6. El filtro de ejecución seleccio
 
 ## 8. Entregar mediante rama y Pull Request
 
-La rama preparada es `feature/checks-tiempos-grafana-actualizado`. Con los cambios aplicados y confirmados en esa rama:
+La rama preparada es `feature/checks-tiempos-grafana`. Con los cambios aplicados y confirmados en esa rama:
 
 ```bash
-git push -u origin feature/checks-tiempos-grafana-actualizado
+git push -u origin feature/checks-tiempos-grafana
 ```
 
-En GitHub crear un Pull Request con base `main` y compare `feature/checks-tiempos-grafana-actualizado`. Adjuntar las evidencias y esperar la revisión del equipo.
+En GitHub crear un Pull Request con base `main` y compare `feature/checks-tiempos-grafana`. Adjuntar las evidencias y esperar la revisión del equipo.
 
 Título sugerido del PR: **Añadir checks de tiempos y dashboard Grafana sin Docker**.
 
