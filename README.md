@@ -60,7 +60,8 @@ quickpizza-performance-k6/
 │   ├── csv.js                       # Lector de archivos CSV
 │   ├── data.js                      # SharedArray de usuarios y pizzas
 │   ├── http.js                      # Cabeceras y token anónimo dinámico
-│   └── auth.js                      # CSRF, login y autenticación
+│   ├── auth.js                      # CSRF, login y autenticación
+│   └── checks.js                    # Checks de tiempo por endpoint
 ├── scenarios/
 │   └── orderPizza.js                # Flujo de negocio
 ├── scripts/
@@ -69,9 +70,16 @@ quickpizza-performance-k6/
 │   ├── quickpizza-v5-smoke.js       # Prueba Smoke
 │   ├── quickpizza-v5-load.js        # Prueba Load
 │   ├── quickpizza-v5-spike.js       # Prueba Spike
-│   └── quickpizza-v5-stress.js      # Prueba Stress
-├── reports/                         # Reportes generados
-├── docs/                            # Documentación, capturas e informe
+│   ├── quickpizza-v5-stress.js      # Prueba Stress
+│   ├── run-grafana.ps1              # Ejecución con Grafana (PowerShell)
+│   └── run-grafana.sh               # Ejecución con Grafana (Bash)
+├── observability/
+│   ├── prometheus.yml               # Configuración de Prometheus
+│   └── quickpizza-dashboard.json    # Dashboard de Grafana
+├── reports/                         # Reportes HTML y salidas de consola
+├── docs/
+│   ├── grafana-sin-docker.md        # Guía de Grafana sin Docker
+│   └── images/                      # Capturas
 └── README.md
 ```
 
@@ -86,7 +94,7 @@ quickpizza-performance-k6/
 | **v3** | Estructura modular + parametrización mediante **SharedArray** y archivos CSV + think time + hasta 100 VUs | ✅ |
 | **v4** | Checks de negocio + comportamiento probabilístico 80 % *Love it* / 20 % *No thanks* | ✅ |
 | **v5** | Thresholds + perfiles de carga: smoke, load, spike y stress | ✅ |
-| **v6** | Checks de tiempos + métricas hacia Prometheus y Grafana local + dashboard | Implementado |
+| **v6** | Checks de tiempos + métricas hacia Prometheus y Grafana local + dashboard | ✅ |
 
 ---
 
@@ -332,7 +340,7 @@ Perfil:
 0 VUs   → 1 minuto
 ```
 
-Los resultados detallados, métricas, gráficas y análisis de estos escenarios se documentarán en el **informe técnico** y en el dashboard de observabilidad.
+El resumen de resultados de estos escenarios está en la sección [📊 Resultados](#-resultados).
 
 ---
 
@@ -461,21 +469,20 @@ Por este motivo:
 
 # Documentación y evidencias
 
-La carpeta `docs/` estará destinada a almacenar:
-
-- Capturas de las ejecuciones.
-- Evidencias del dashboard.
-- Análisis de resultados.
-- Informe técnico.
-- Conclusiones y recomendaciones.
-
-Los resultados detallados de las pruebas no se mantienen en este README para conservarlo como documento de referencia y ejecución del proyecto.
+- `reports/`: reportes HTML del dashboard web de k6 y salidas de consola.
+- `observability/`: dashboard de Grafana y configuración de Prometheus.
+- `docs/grafana-sin-docker.md`: guía para instalar y ejecutar Grafana sin Docker.
+- `docs/images/`: capturas usadas en este README.
 
 ---
 
 # Equipo – Grupo 2
 
-- David Soliz Garcia
+- Pablo Ivan Chuquimia Huanca
+- Mauricio Gutierrez Pacheco
+- Rodrigo Camilo Mendez Gallardo
 - Maria Alexandra Quintanilla
+- Pedro Adrian Santos Orellana
+- David Soliz Garcia
 
 **Docente:** Marco Luna Gonzales
