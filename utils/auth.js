@@ -10,7 +10,7 @@ import http from "k6/http";
 import { checkResponseTime } from "./checks.js";
 import { check } from "k6";
 import { BASE_URL, debugLog } from "../config/settings.js";
-import { apiParams } from "./http.js";
+import { apiParams, jsonBody } from "./http.js";
 
 // ---------------------------------------------------------------------
 // POST /api/csrf-token
@@ -28,13 +28,13 @@ export function getCsrfToken() {
   // (en la v2 un header vacío rompía la iteración).
   const setCookie = res.headers["Set-Cookie"] || "";
   const match = setCookie.match(/csrf_token=([A-Za-z0-9]+);/);
-  const csrfToken = match ? match[1] : null;
+  const csrfToken = res.status === 200 && match ? match[1] : null;
   debugLog("Correlación 1 (Regex)    csrf_token", csrfToken);
 
   check(res, {
     "csrf: status 200": (r) => r.status === 200,
     "csrf: token extraído": () => csrfToken !== null,
-  });
+  }, { kind: "functional" });
 
   return csrfToken;
 }
@@ -64,7 +64,9 @@ export function login(user, csrfToken) {
 
   checkResponseTime(res, "POST /api/users/token/login");
 
-  const token = res.status === 200 ? res.json("token") : null;
+  const body = jsonBody(res);
+  const token = res.status === 200 && body && typeof body.token === "string" && body.token.length === 16
+    ? body.token : null;
   debugLog("Correlación 2 (JSONPath) token de sesión", token);
 
   if (res.status !== 200) {
@@ -73,8 +75,8 @@ export function login(user, csrfToken) {
 
   check(res, {
     "login: status 200": (r) => r.status === 200,
-    "login: token de 16 caracteres": () => token !== null && token.length === 16,
-  });
+    "login: token de 16 caracteres": () => token !== null,
+  }, { kind: "functional" });
 
   return token;
 }
@@ -92,10 +94,12 @@ export function authenticate(token, username) {
 
   checkResponseTime(res, "POST /api/users/token/authenticate");
 
+  const body = jsonBody(res);
+
   check(res, {
     "authenticate: status 200": (r) => r.status === 200,
-    "authenticate: usuario correcto": (r) => r.status === 200 && r.json("username") === username,
-  });
+    "authenticate: usuario correcto": (r) => r.status === 200 && body !== null && body.username === username,
+  }, { kind: "functional" });
 
   return res;
 }

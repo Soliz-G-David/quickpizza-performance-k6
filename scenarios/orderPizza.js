@@ -23,7 +23,7 @@ import { group, check, sleep } from "k6";
 import { Counter } from "k6/metrics";
 
 import { BASE_URL, THINK_TIME, debugLog } from "../config/settings.js";
-import { htmlHeaders, apiParams, randomToken } from "../utils/http.js";
+import { htmlHeaders, apiParams, randomToken, jsonBody } from "../utils/http.js";
 import { getCsrfToken, login, authenticate } from "../utils/auth.js";
 import { getUserForVU, getRandomPizza } from "../utils/data.js";
 
@@ -56,21 +56,15 @@ function orderPizza(token, pizzaData) {
 
   checkResponseTime(res, "POST /api/pizza");
 
-  const pizzaId = res.status === 200 ? res.json("pizza.id") : null;
+  const body = jsonBody(res);
+  const pizza = body && body.pizza ? body.pizza : null;
+  const pizzaId = res.status === 200 && pizza && Number.isSafeInteger(pizza.id) && pizza.id > 0
+    ? pizza.id : null;
 
   debugLog(
     `Correlación 3 (JSONPath) pizza.id ("${pizzaData.customName}")`,
     pizzaId
   );
-
-  // Lee el body una sola vez; si no es JSON válido, queda en null.
-  let body = null;
-  try {
-    body = res.json();
-  } catch (e) {
-    body = null;
-  }
-  const pizza = body && body.pizza ? body.pizza : null;
 
   check(res, {
     "pizza: status 200": (r) => r.status === 200,
@@ -83,7 +77,7 @@ function orderPizza(token, pizzaData) {
       pizza.ingredients.length > 0,
     "pizza: es vegetariana si se pidió": () =>
       !pizzaData.mustBeVegetarian || (body !== null && body.vegetarian === true),
-  });
+  }, { kind: "functional" });
 
   return pizzaId;
 }
@@ -102,13 +96,15 @@ function ratePizza(token, pizzaId, stars) {
 
   checkResponseTime(res, "POST /api/ratings");
 
+  const body = jsonBody(res);
+
   check(res, {
     "rating: status 201": (r) => r.status === 201,
     "rating: guarda la pizza y las estrellas": (r) =>
       r.status === 201 &&
-      r.json("pizza_id") === pizzaId &&
-      r.json("stars") === stars,
-  });
+      body !== null && body.pizza_id === pizzaId &&
+      body.stars === stars,
+  }, { kind: "functional" });
 
   return res;
 }
@@ -132,7 +128,7 @@ export function orderPizzaFlow() {
       "home: status 200": (r) => r.status === 200,
       "home: devuelve la página de QuickPizza": (r) =>
         typeof r.body === "string" && r.body.includes("<html") && r.body.includes("pizza"),
-    });
+    }, { kind: "functional" });
 
     const configResponse = http.get(
       `${BASE_URL}/api/config`,
@@ -167,7 +163,7 @@ export function orderPizzaFlow() {
 
     check(res, {
       "login page: status 200": (r) => r.status === 200,
-    });
+    }, { kind: "functional" });
 
     const csrfToken = getCsrfToken();
 

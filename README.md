@@ -269,6 +269,7 @@ Se definieron los siguientes objetivos de rendimiento para el proyecto:
 ```text
 P95 < 500 ms
 Error rate < 1 %
+Checks funcionales > 99 %
 ```
 
 Los criterios se implementan mediante thresholds de k6:
@@ -277,8 +278,11 @@ Los criterios se implementan mediante thresholds de k6:
 thresholds: {
   http_req_duration: ["p(95)<500"],
   http_req_failed: ["rate<0.01"],
+  "checks{kind:functional}": ["rate>0.99"],
 }
 ```
+
+Los checks funcionales se evalúan por separado de los checks individuales de tiempo: un fallo funcional puede hacer que la ejecución termine con error aunque todas las respuestas HTTP sean exitosas. El porcentaje agrega todos los checks funcionales, por lo que debe revisarse también el detalle de cada uno.
 
 El valor de **500 ms** se utiliza como criterio de aceptación definido para este proyecto, tomando como referencia el objetivo de rendimiento planteado en la consigna.
 
@@ -346,7 +350,7 @@ El resumen de resultados de estos escenarios está en la sección [📊 Resultad
 
 # v6 – Observabilidad con Grafana
 
-Los checks de tiempo validan cada solicitud del flujo modular contra un límite de 500 ms, configurable con `MAX_RESPONSE_MS`. Los thresholds de v5 mantienen P95 < 500 ms y errores HTTP < 1 %.
+Los checks de tiempo validan cada solicitud del flujo modular contra un límite de 500 ms, configurable con `MAX_RESPONSE_MS`. Los thresholds de v5 exigen P95 < 500 ms, errores HTTP < 1 % y más de 99 % de checks funcionales exitosos. `MAX_RESPONSE_MS` solo modifica los checks individuales de tiempo; el umbral P95 permanece en 500 ms.
 
 La integración utiliza k6 → Prometheus → Grafana mediante remote write e histogramas nativos, con instalación local de los ejecutables.
 

@@ -40,3 +40,12 @@ export function apiParams(token, name, referer = `${BASE_URL}/`) {
   if (token) headers.authorization = `Token ${token}`;
   return { headers, tags: { name } };
 }
+
+// Respuestas de error o degradadas pueden no contener JSON válido.
+export function jsonBody(response) {
+  try {
+    return response.json();
+  } catch (e) {
+    return null;
+  }
+}
