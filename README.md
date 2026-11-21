@@ -5,7 +5,24 @@ Proyecto final del **Diplomado en Testing de Software V6 (UCB)** – Módulo Tes
 Evaluación de rendimiento de la aplicación de demostración **QuickPizza** de Grafana mediante **Grafana k6 Studio**, **k6** y **Grafana**.
 
 - **App bajo prueba:** https://quickpizza.grafana.com
-- **Herramientas:** Grafana k6 Studio 2.1.3 · k6 · Grafana
+- **Herramientas:** Grafana k6 Studio 2.1.3 · k6 · Prometheus · Grafana
+
+---
+
+## 📊 Resultados
+
+| Prueba | Usuarios | P95 | P99 | Errores | Checks | Resultado |
+|---|---:|---:|---:|---:|---:|:---:|
+| Smoke  | 1   | 223 ms | 236 ms | 0 % | 100 %   | ✅ |
+| Load   | 100 | 226 ms | 237 ms | 0 % | 99.99 % | ✅ |
+| Spike  | 100 | 227 ms | 237 ms | 0 % | 99.99 % | ✅ |
+| Stress | 400 | 254 ms | 323 ms | 0 % | 99.95 % | ✅ |
+
+> **Conclusión:** QuickPizza soporta unos **300 usuarios simultáneos** respondiendo en ~230 ms y sin errores. Desde ahí, las acciones que guardan datos (pedir y calificar pizzas) son las primeras en ponerse lentas.
+
+![Dashboard de Grafana bajo carga máxima](docs/images/grafana-stress.png)
+
+*Dashboard de Grafana durante el stress de 400 usuarios (k6 → Prometheus → Grafana, sin Docker).*
 
 ---
 
